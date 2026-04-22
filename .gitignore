@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build output
+dist/
+build/
+
+# Data files (keep structure but ignore content)
+# data/*.json
+data/*.db
+data/*.sqlite
+
+# Token/secrets
+config.json
+credentials.json
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Discord specific
+*.toml
