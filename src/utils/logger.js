@@ -34,7 +34,7 @@ class Logger {
   }
 
   static command(user, command) {
-    console.log(`${this._timestamp()} ${chalk.magenta('CMD')} ${chalk.white(user)} 使用了 ${chalk.cyan(`/${command}`)}`);
+    console.log(`${this._timestamp()} ${chalk.magenta('CMD')} ${chalk.white(user)} executed ${chalk.cyan(`/${command}`)}`);
   }
 }
 

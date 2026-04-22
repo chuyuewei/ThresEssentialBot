@@ -6,62 +6,62 @@ const config = require('../../../config');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('purge')
-    .setDescription(`${config.emojis.trash} 批量删除消息`)
+    .setDescription(`${config.emojis.trash} Bulk delete messages`)
     .addIntegerOption((opt) =>
       opt
-        .setName('数量')
-        .setDescription('要删除的消息数量 (1-100)')
+        .setName('amount')
+        .setDescription('Number of messages to delete (1-100)')
         .setMinValue(1)
         .setMaxValue(100)
         .setRequired(true)
     )
-    .addUserOption((opt) => opt.setName('用户').setDescription('仅删除该用户的消息').setRequired(false))
+    .addUserOption((opt) => opt.setName('user').setDescription('Only delete this user\'s messages').setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
   async execute(interaction) {
-    const amount = interaction.options.getInteger('数量');
-    const targetUser = interaction.options.getUser('用户');
+    const amount = interaction.options.getInteger('amount');
+    const targetUser = interaction.options.getUser('user');
 
     await interaction.deferReply({ ephemeral: true });
 
     try {
       let messages = await interaction.channel.messages.fetch({ limit: amount });
 
-      // 如果指定了用户，只删除该用户的消息
+      // If user specified, only delete that user's messages
       if (targetUser) {
         messages = messages.filter((m) => m.author.id === targetUser.id);
       }
 
-      // 过滤掉超过 14 天的消息（Discord API 限制）
+      // Filter out messages older than 14 days (Discord API limit)
       const now = Date.now();
       messages = messages.filter((m) => now - m.createdTimestamp < 14 * 24 * 60 * 60 * 1000);
 
       const deleted = await interaction.channel.bulkDelete(messages, true);
 
       const embed = EmbedFactory.success(
-        '消息已清除',
-        `已成功删除 **${deleted.size}** 条消息。${targetUser ? `\n仅删除 ${targetUser} 的消息。` : ''}`
+        'Messages Purged',
+        `Successfully deleted **${deleted.size}** messages.${targetUser ? `\nOnly deleted messages from ${targetUser}.` : ''}`
       );
 
       await interaction.editReply({ embeds: [embed] });
 
-      // 日志
+      // Log
       const logCh = interaction.guild.channels.cache.find((c) => c.name === config.logs.channelName);
       if (logCh) {
         logCh.send({
           embeds: [
             EmbedFactory.modLog({
-              action: '清除消息 (Purge)',
+              action: 'Purge',
               moderator: interaction.user,
               target: targetUser || interaction.user,
-              reason: `在 #${interaction.channel.name} 清除了 ${deleted.size} 条消息`,
+              reason: `Purged ${deleted.size} messages in #${interaction.channel.name}`,
             }),
           ],
         }).catch(() => {});
       }
     } catch (error) {
       await interaction.editReply({
-        embeds: [EmbedFactory.error('操作失败', `无法删除消息: ${error.message}`)],
+        embeds: [EmbedFactory.error('Action Failed', `Cannot delete messages: ${error.message}`)],
       });
     }
   },

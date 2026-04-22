@@ -5,15 +5,15 @@ const config = require('../../../config');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('avatar')
-    .setDescription(`${config.emojis.user} 查看用户头像`)
-    .addUserOption((opt) => opt.setName('用户').setDescription('要查看头像的用户').setRequired(false)),
+    .setDescription(`${config.emojis.user} View user avatar`)
+    .addUserOption((opt) => opt.setName('user').setDescription('User to view avatar').setRequired(false)),
 
   async execute(interaction) {
-    const user = interaction.options.getUser('用户') || interaction.user;
+    const user = interaction.options.getUser('user') || interaction.user;
 
     const embed = new EmbedBuilder()
       .setColor(config.bot.color)
-      .setTitle(`${user.tag} 的头像`)
+      .setTitle(`${user.tag}'s avatar`)
       .setImage(user.displayAvatarURL({ dynamic: true, size: 1024 }))
       .setDescription(
         [

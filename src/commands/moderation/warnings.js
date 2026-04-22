@@ -7,54 +7,54 @@ const config = require('../../../config');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('warnings')
-    .setDescription(`${config.emojis.warn} 查看/管理用户的警告`)
+    .setDescription(`${config.emojis.warn} View/manage user warnings`)
     .addSubcommand((sub) =>
       sub
         .setName('list')
-        .setDescription('查看用户的所有警告')
-        .addUserOption((opt) => opt.setName('用户').setDescription('目标用户').setRequired(true))
+        .setDescription('View all warnings for a user')
+        .addUserOption((opt) => opt.setName('user').setDescription('Target user').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('clear')
-        .setDescription('清除用户的所有警告')
-        .addUserOption((opt) => opt.setName('用户').setDescription('目标用户').setRequired(true))
+        .setDescription('Clear all warnings for a user')
+        .addUserOption((opt) => opt.setName('user').setDescription('Target user').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('remove')
-        .setDescription('移除用户的指定警告')
-        .addUserOption((opt) => opt.setName('用户').setDescription('目标用户').setRequired(true))
-        .addIntegerOption((opt) => opt.setName('编号').setDescription('警告编号').setRequired(true).setMinValue(1))
+        .setDescription('Remove a specific warning')
+        .addUserOption((opt) => opt.setName('user').setDescription('Target user').setRequired(true))
+        .addIntegerOption((opt) => opt.setName('warn-id').setDescription('Warning ID').setRequired(true).setMinValue(1))
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(interaction) {
     const sub = interaction.options.getSubcommand();
-    const target = interaction.options.getUser('用户');
+    const target = interaction.options.getUser('user');
 
     if (sub === 'list') {
       const warnings = WarnManager.getWarnings(interaction.guild.id, target.id);
 
       if (warnings.length === 0) {
         return interaction.reply({
-          embeds: [EmbedFactory.info('警告记录', `**${target.tag}** 没有任何警告记录。`)],
+          embeds: [EmbedFactory.info('Warning Records', `**${target.tag}** has no warning records.`)],
           ephemeral: true,
         });
       }
 
       const embed = new EmbedBuilder()
         .setColor(config.bot.warnColor)
-        .setTitle(`⚠️ ${target.tag} 的警告记录`)
+        .setTitle(`⚠️ Warning Records for ${target.tag}`)
         .setThumbnail(target.displayAvatarURL({ size: 128 }))
-        .setDescription(`共 **${warnings.length}** 条警告`)
+        .setDescription(`Total **${warnings.length}** warnings`)
         .setTimestamp()
         .setFooter({ text: config.bot.name });
 
       for (const w of warnings) {
         embed.addFields({
-          name: `#${w.id} — ${new Date(w.timestamp).toLocaleDateString('zh-CN')}`,
-          value: `**原因：** ${w.reason}\n**执行者：** <@${w.moderatorId}>`,
+          name: `#${w.id} — ${new Date(w.timestamp).toLocaleDateString()}`,
+          value: `**Reason:** ${w.reason}\n**Moderator:** <@${w.moderatorId}>`,
           inline: false,
         });
       }
@@ -66,25 +66,25 @@ module.exports = {
       const count = WarnManager.clearWarnings(interaction.guild.id, target.id);
       return interaction.reply({
         embeds: [
-          EmbedFactory.success('警告已清除', `已清除 **${target.tag}** 的 **${count}** 条警告。`),
+          EmbedFactory.success('Warnings Cleared', `Cleared **${count}** warnings for **${target.tag}**.`),
         ],
       });
     }
 
     if (sub === 'remove') {
-      const warnId = interaction.options.getInteger('编号');
+      const warnId = interaction.options.getInteger('warn-id');
       const success = WarnManager.removeWarning(interaction.guild.id, target.id, warnId);
 
       if (!success) {
         return interaction.reply({
-          embeds: [EmbedFactory.error('操作失败', `未找到编号为 **#${warnId}** 的警告。`)],
+          embeds: [EmbedFactory.error('Action Failed', `Warning **#${warnId}** not found.`)],
           ephemeral: true,
         });
       }
 
       return interaction.reply({
         embeds: [
-          EmbedFactory.success('警告已移除', `已移除 **${target.tag}** 的警告 **#${warnId}**。`),
+          EmbedFactory.success('Warning Removed', `Removed warning **#${warnId}** for **${target.tag}**.`),
         ],
       });
     }

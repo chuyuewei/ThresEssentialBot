@@ -11,7 +11,7 @@ module.exports = {
 
     const command = interaction.client.commands.get(interaction.commandName);
     if (!command) {
-      Logger.warn(`未知命令: ${interaction.commandName}`);
+      Logger.warn(`Unknown command: ${interaction.commandName}`);
       return;
     }
 
@@ -19,12 +19,12 @@ module.exports = {
       Logger.command(interaction.user.tag, interaction.commandName);
       await command.execute(interaction);
     } catch (error) {
-      Logger.error(`执行命令 /${interaction.commandName} 时出错: ${error.message}`);
+      Logger.error(`Error executing /${interaction.commandName}: ${error.message}`);
       console.error(error);
 
       const errorEmbed = EmbedFactory.error(
-        '命令执行失败',
-        '执行此命令时发生了一个意外错误，请稍后重试。'
+        'Command Failed',
+        'An unexpected error occurred while executing this command. Please try again later.'
       );
 
       const reply = { embeds: [errorEmbed], ephemeral: true };

@@ -7,31 +7,31 @@ const config = require('../../../config');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('warn')
-    .setDescription(`${config.emojis.warn} 警告一个用户`)
-    .addUserOption((opt) => opt.setName('用户').setDescription('要警告的用户').setRequired(true))
-    .addStringOption((opt) => opt.setName('原因').setDescription('警告原因').setRequired(true))
+    .setDescription(`${config.emojis.warn} Warn a user`)
+    .addUserOption((opt) => opt.setName('user').setDescription('User to warn').setRequired(true))
+    .addStringOption((opt) => opt.setName('reason').setDescription('Warn reason').setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(interaction) {
-    const target = interaction.options.getUser('用户');
-    const reason = interaction.options.getString('原因');
+    const target = interaction.options.getUser('user');
+    const reason = interaction.options.getString('reason');
     const member = await interaction.guild.members.fetch(target.id).catch(() => null);
 
     if (!member) {
       return interaction.reply({
-        embeds: [EmbedFactory.error('操作失败', '该用户不在此服务器中。')],
+        embeds: [EmbedFactory.error('Action Failed', 'This user is not in this server.')],
         ephemeral: true,
       });
     }
 
     if (target.bot) {
       return interaction.reply({
-        embeds: [EmbedFactory.error('操作失败', '你不能警告一个 Bot。')],
+        embeds: [EmbedFactory.error('Action Failed', 'You cannot warn a Bot.')],
         ephemeral: true,
       });
     }
 
-    // 添加警告
+    // Add warning
     const { warnings, count } = WarnManager.addWarning(
       interaction.guild.id,
       target.id,
@@ -40,75 +40,75 @@ module.exports = {
     );
 
     const embed = EmbedFactory.warn(
-      '用户已被警告',
-      `**${target.tag}** 收到了一条警告。`
+      'User Warned',
+      `**${target.tag}** has received a warning.`
     );
     embed.addFields(
-      { name: '📝 原因', value: reason, inline: false },
-      { name: '⚠️ 总警告数', value: `${count} / ${config.moderation.maxWarnings}`, inline: true },
-      { name: '🛡️ 执行者', value: `${interaction.user}`, inline: true }
+      { name: '📝 Reason', value: reason, inline: false },
+      { name: '⚠️ Total Warnings', value: `${count} / ${config.moderation.maxWarnings}`, inline: true },
+      { name: '🛡️ Moderator', value: `${interaction.user}`, inline: true }
     );
 
     await interaction.reply({ embeds: [embed] });
 
-    // 私信
+    // DM
     try {
       await target.send({
         embeds: [
           EmbedFactory.warn(
-            '你收到了一条警告',
-            `你在 **${interaction.guild.name}** 收到了一条警告。\n**原因：** ${reason}\n**当前警告数：** ${count} / ${config.moderation.maxWarnings}`
+            'You received a warning',
+            `You received a warning in **${interaction.guild.name}**.\n**Reason:** ${reason}\n**Current warnings:** ${count} / ${config.moderation.maxWarnings}`
           ),
         ],
       });
     } catch {}
 
-    // 检查是否达到最大警告数
+    // Check if max warnings reached
     if (count >= config.moderation.maxWarnings) {
       const action = config.moderation.autoActionOnMaxWarns;
       let actionText = '';
 
       try {
         if (action === 'kick' && member.kickable) {
-          await member.kick(`警告数达到上限 (${count})`);
-          actionText = '踢出';
+          await member.kick(`Max warnings reached (${count})`);
+          actionText = 'kicked';
         } else if (action === 'ban' && member.bannable) {
           await interaction.guild.members.ban(target, {
-            reason: `警告数达到上限 (${count})`,
+            reason: `Max warnings reached (${count})`,
           });
-          actionText = '封禁';
+          actionText = 'banned';
         } else if (action === 'mute' && member.moderatable) {
-          await member.timeout(24 * 60 * 60 * 1000, `警告数达到上限 (${count})`);
-          actionText = '禁言 24 小时';
+          await member.timeout(24 * 60 * 60 * 1000, `Max warnings reached (${count})`);
+          actionText = 'muted for 24 hours';
         }
 
         if (actionText) {
           await interaction.followUp({
             embeds: [
               EmbedFactory.error(
-                '自动处罚',
-                `**${target.tag}** 的警告数已达到上限 (${config.moderation.maxWarnings})，已自动执行 **${actionText}**。`
+                'Auto Punishment',
+                `**${target.tag}** has reached the maximum warning limit (${config.moderation.maxWarnings}). **${actionText}** has been automatically executed.`
               ),
             ],
           });
 
-          // 清除警告
+          // Clear warnings
           WarnManager.clearWarnings(interaction.guild.id, target.id);
         }
       } catch {}
     }
 
-    // 日志
+    // Log
     const logCh = interaction.guild.channels.cache.find((c) => c.name === config.logs.channelName);
     if (logCh) {
       logCh.send({
         embeds: [
           EmbedFactory.modLog({
-            action: '警告 (Warn)',
+            action: 'Warn',
             moderator: interaction.user,
             target,
             reason,
-            extra: { '⚠️ 总警告数': `${count} / ${config.moderation.maxWarnings}` },
+            extra: { '⚠️ Total Warnings': `${count} / ${config.moderation.maxWarnings}` },
           }),
         ],
       }).catch(() => {});

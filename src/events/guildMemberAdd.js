@@ -7,9 +7,9 @@ module.exports = {
   name: Events.GuildMemberAdd,
   once: false,
   async execute(member) {
-    Logger.info(`新成员加入: ${member.user.tag} -> ${member.guild.name}`);
+    Logger.info(`Member joined: ${member.user.tag} -> ${member.guild.name}`);
 
-    // 尝试发送到日志频道
+    // Try to send to log channel
     if (!config.logs.enabled) return;
 
     const logChannel = member.guild.channels.cache.find(
@@ -19,13 +19,13 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setColor(config.bot.successColor)
-      .setTitle('📥 成员加入')
+      .setTitle('📥 Member Joined')
       .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
       .addFields(
-        { name: '用户', value: `${member} (${member.user.tag})`, inline: true },
+        { name: 'User', value: `${member} (${member.user.tag})`, inline: true },
         { name: 'ID', value: member.id, inline: true },
-        { name: '账号创建时间', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
-        { name: '当前成员数', value: `${member.guild.memberCount}`, inline: true },
+        { name: 'Account Created', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
+        { name: 'Current Members', value: `${member.guild.memberCount}`, inline: true },
       )
       .setTimestamp()
       .setFooter({ text: config.bot.name });

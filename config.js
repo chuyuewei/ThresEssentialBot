@@ -26,13 +26,13 @@ module.exports = {
     clock: '⏰',
   },
   moderation: {
-    maxWarnings: 5, // 达到此数量自动执行操作
+    maxWarnings: 5, // Auto action when reaching this count
     autoActionOnMaxWarns: 'kick', // 'kick' | 'ban' | 'mute'
-    defaultMuteDuration: 10, // 分钟
+    defaultMuteDuration: 10, // Minutes
     maxPurgeAmount: 100,
   },
   logs: {
     enabled: true,
-    channelName: 'mod-logs', // 日志频道名称
+    channelName: 'mod-logs', // Log channel name
   },
 };

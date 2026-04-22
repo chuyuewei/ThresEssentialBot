@@ -6,51 +6,51 @@ const config = require('../../../config');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('kick')
-    .setDescription(`${config.emojis.kick} 踢出一个用户`)
-    .addUserOption((opt) => opt.setName('用户').setDescription('要踢出的用户').setRequired(true))
-    .addStringOption((opt) => opt.setName('原因').setDescription('踢出原因').setRequired(false))
+    .setDescription(`${config.emojis.kick} Kick a user`)
+    .addUserOption((opt) => opt.setName('user').setDescription('User to kick').setRequired(true))
+    .addStringOption((opt) => opt.setName('reason').setDescription('Kick reason').setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
 
   async execute(interaction) {
-    const target = interaction.options.getUser('用户');
-    const reason = interaction.options.getString('原因') || '未提供原因';
+    const target = interaction.options.getUser('user');
+    const reason = interaction.options.getString('reason') || 'No reason provided';
     const member = await interaction.guild.members.fetch(target.id).catch(() => null);
 
     if (!member) {
       return interaction.reply({
-        embeds: [EmbedFactory.error('操作失败', '该用户不在此服务器中。')],
+        embeds: [EmbedFactory.error('Action Failed', 'This user is not in this server.')],
         ephemeral: true,
       });
     }
 
     if (target.id === interaction.user.id) {
       return interaction.reply({
-        embeds: [EmbedFactory.error('操作失败', '你不能踢出自己！')],
+        embeds: [EmbedFactory.error('Action Failed', 'You cannot kick yourself!')],
         ephemeral: true,
       });
     }
 
     if (member.roles.highest.position >= interaction.member.roles.highest.position) {
       return interaction.reply({
-        embeds: [EmbedFactory.error('权限不足', '你不能踢出一个角色等级 ≥ 你的用户。')],
+        embeds: [EmbedFactory.error('Permission Denied', 'You cannot kick a user with a role equal to or higher than yours.')],
         ephemeral: true,
       });
     }
 
     if (!member.kickable) {
       return interaction.reply({
-        embeds: [EmbedFactory.error('操作失败', '我无法踢出此用户，请检查我的角色权限。')],
+        embeds: [EmbedFactory.error('Action Failed', 'I cannot kick this user. Please check my role permissions.')],
         ephemeral: true,
       });
     }
 
-    // 私信通知
+    // DM notification
     try {
       await target.send({
         embeds: [
           EmbedFactory.warn(
-            '你已被踢出',
-            `你已被 **${interaction.guild.name}** 踢出。\n**原因：** ${reason}`
+            'You have been kicked',
+            `You have been kicked from **${interaction.guild.name}**.\n**Reason:** ${reason}`
           ),
         ],
       });
@@ -58,19 +58,19 @@ module.exports = {
 
     await member.kick(`${interaction.user.tag}: ${reason}`);
 
-    const embed = EmbedFactory.success('用户已踢出', `**${target.tag}** 已被成功踢出。`);
+    const embed = EmbedFactory.success('User Kicked', `**${target.tag}** has been successfully kicked.`);
     embed.addFields(
-      { name: '📝 原因', value: reason, inline: true },
-      { name: '🛡️ 执行者', value: `${interaction.user}`, inline: true }
+      { name: '📝 Reason', value: reason, inline: true },
+      { name: '🛡️ Moderator', value: `${interaction.user}`, inline: true }
     );
 
     await interaction.reply({ embeds: [embed] });
 
-    // 日志
+    // Log
     const logCh = interaction.guild.channels.cache.find((c) => c.name === config.logs.channelName);
     if (logCh) {
       logCh.send({
-        embeds: [EmbedFactory.modLog({ action: '踢出 (Kick)', moderator: interaction.user, target, reason })],
+        embeds: [EmbedFactory.modLog({ action: 'Kick', moderator: interaction.user, target, reason })],
       }).catch(() => {});
     }
   },

@@ -4,7 +4,7 @@ const config = require('../../config');
 
 class EmbedFactory {
   /**
-   * 创建成功类型的 Embed
+   * Create a success type Embed
    */
   static success(title, description) {
     return new EmbedBuilder()
@@ -16,7 +16,7 @@ class EmbedFactory {
   }
 
   /**
-   * 创建错误类型的 Embed
+   * Create an error type Embed
    */
   static error(title, description) {
     return new EmbedBuilder()
@@ -28,7 +28,7 @@ class EmbedFactory {
   }
 
   /**
-   * 创建警告类型的 Embed
+   * Create a warning type Embed
    */
   static warn(title, description) {
     return new EmbedBuilder()
@@ -40,7 +40,7 @@ class EmbedFactory {
   }
 
   /**
-   * 创建信息类型的 Embed
+   * Create an info type Embed
    */
   static info(title, description) {
     return new EmbedBuilder()
@@ -52,21 +52,21 @@ class EmbedFactory {
   }
 
   /**
-   * 创建管理日志 Embed
+   * Create a moderation log Embed
    */
   static modLog({ action, moderator, target, reason, extra = {} }) {
     const embed = new EmbedBuilder()
       .setColor(config.bot.warnColor)
-      .setTitle(`${config.emojis.shield} 管理操作 — ${action}`)
+      .setTitle(`${config.emojis.shield} Moderation Action — ${action}`)
       .addFields(
-        { name: '👤 目标用户', value: `${target} (${target.id})`, inline: true },
-        { name: '🛡️ 执行者', value: `${moderator} (${moderator.id})`, inline: true },
-        { name: '📝 原因', value: reason || '未提供原因', inline: false },
+        { name: '👤 Target User', value: `${target} (${target.id})`, inline: true },
+        { name: '🛡️ Moderator', value: `${moderator} (${moderator.id})`, inline: true },
+        { name: '📝 Reason', value: reason || 'No reason provided', inline: false },
       )
       .setTimestamp()
       .setFooter({ text: config.bot.name });
 
-    // 添加额外字段
+    // Add extra fields
     for (const [key, value] of Object.entries(extra)) {
       embed.addFields({ name: key, value: String(value), inline: true });
     }

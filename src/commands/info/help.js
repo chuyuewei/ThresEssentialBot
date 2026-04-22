@@ -5,44 +5,44 @@ const config = require('../../../config');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('help')
-    .setDescription(`${config.emojis.info} 显示帮助信息`),
+    .setDescription(`${config.emojis.info} Display help information`),
 
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setColor(config.bot.color)
       .setTitle(`${config.emojis.shield} ${config.bot.name}`)
-      .setDescription('一个功能强大的 Discord 基础管理 Bot。以下是所有可用命令：')
+      .setDescription('A powerful Discord moderation bot. Here are all available commands:')
       .addFields(
         {
-          name: '🔨 管理命令',
+          name: '🔨 Moderation Commands',
           value: [
-            '`/ban` — 封禁用户',
-            '`/kick` — 踢出用户',
-            '`/mute` — 禁言用户 (Timeout)',
-            '`/unmute` — 解除禁言',
-            '`/warn` — 警告用户',
-            '`/warnings list` — 查看警告',
-            '`/warnings clear` — 清除警告',
-            '`/warnings remove` — 移除单条警告',
-            '`/purge` — 批量删除消息',
-            '`/slowmode` — 设置慢速模式',
+            '`/ban` — Ban a user',
+            '`/kick` — Kick a user',
+            '`/mute` — Mute a user (Timeout)',
+            '`/unmute` — Unmute a user',
+            '`/warn` — Warn a user',
+            '`/warnings list` — View warnings',
+            '`/warnings clear` — Clear warnings',
+            '`/warnings remove` — Remove a warning',
+            '`/purge` — Bulk delete messages',
+            '`/slowmode` — Set slowmode',
           ].join('\n'),
           inline: false,
         },
         {
-          name: 'ℹ️ 信息命令',
+          name: 'ℹ️ Info Commands',
           value: [
-            '`/help` — 显示帮助',
-            '`/userinfo` — 查看用户信息',
-            '`/serverinfo` — 查看服务器信息',
+            '`/help` — Show help',
+            '`/userinfo` — View user info',
+            '`/serverinfo` — View server info',
           ].join('\n'),
           inline: false,
         },
         {
-          name: '🔧 实用工具',
+          name: '🔧 Utility',
           value: [
-            '`/ping` — 查看延迟',
-            '`/avatar` — 查看头像',
+            '`/ping` — Check latency',
+            '`/avatar` — View avatar',
           ].join('\n'),
           inline: false,
         }

@@ -5,11 +5,11 @@ const config = require('../../../config');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('serverinfo')
-    .setDescription(`${config.emojis.server} 查看服务器信息`),
+    .setDescription(`${config.emojis.server} View server information`),
 
   async execute(interaction) {
     const { guild } = interaction;
-    await guild.members.fetch(); // 确保缓存是最新的
+    await guild.members.fetch(); // Ensure cache is fresh
 
     const textChannels = guild.channels.cache.filter((c) => c.type === ChannelType.GuildText).size;
     const voiceChannels = guild.channels.cache.filter((c) => c.type === ChannelType.GuildVoice).size;
@@ -21,11 +21,11 @@ module.exports = {
     const bots = guild.members.cache.filter((m) => m.user.bot).size;
 
     const verificationLevels = {
-      0: '无',
-      1: '低',
-      2: '中',
-      3: '高',
-      4: '最高',
+      0: 'None',
+      1: 'Low',
+      2: 'Medium',
+      3: 'High',
+      4: 'Highest',
     };
 
     const embed = new EmbedBuilder()
@@ -34,28 +34,28 @@ module.exports = {
       .setThumbnail(guild.iconURL({ dynamic: true, size: 512 }))
       .addFields(
         { name: '🆔 ID', value: guild.id, inline: true },
-        { name: '👑 拥有者', value: `<@${guild.ownerId}>`, inline: true },
+        { name: '👑 Owner', value: `<@${guild.ownerId}>`, inline: true },
         {
-          name: '📅 创建时间',
+          name: '📅 Created At',
           value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:F>`,
           inline: true,
         },
         {
-          name: `👥 成员 [${guild.memberCount}]`,
-          value: `👤 人类: ${humans}\n🤖 Bot: ${bots}`,
+          name: `👥 Members [${guild.memberCount}]`,
+          value: `👤 Humans: ${humans}\n🤖 Bots: ${bots}`,
           inline: true,
         },
         {
-          name: `💬 频道 [${totalChannels}]`,
-          value: `📝 文字: ${textChannels}\n🔊 语音: ${voiceChannels}\n📁 分类: ${categories}`,
+          name: `💬 Channels [${totalChannels}]`,
+          value: `📝 Text: ${textChannels}\n🔊 Voice: ${voiceChannels}\n📁 Categories: ${categories}`,
           inline: true,
         },
-        { name: '🏅 角色数', value: `${guild.roles.cache.size}`, inline: true },
-        { name: '😀 表情数', value: `${guild.emojis.cache.size}`, inline: true },
-        { name: '🔒 验证等级', value: verificationLevels[guild.verificationLevel] || '未知', inline: true },
+        { name: '🏅 Roles', value: `${guild.roles.cache.size}`, inline: true },
+        { name: '😀 Emojis', value: `${guild.emojis.cache.size}`, inline: true },
+        { name: '🔒 Verification Level', value: verificationLevels[guild.verificationLevel] || 'Unknown', inline: true },
         {
-          name: '🚀 助力',
-          value: `等级 ${guild.premiumTier} (${guild.premiumSubscriptionCount || 0} 次助力)`,
+          name: '🚀 Boost Level',
+          value: `Level ${guild.premiumTier} (${guild.premiumSubscriptionCount || 0} boosts)`,
           inline: true,
         }
       )

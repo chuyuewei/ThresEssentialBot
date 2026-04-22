@@ -5,7 +5,7 @@ const config = require('../../../config');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('ping')
-    .setDescription(`${config.emojis.ping} 查看 Bot 延迟`),
+    .setDescription(`${config.emojis.ping} Check bot latency`),
 
   async execute(interaction) {
     const sent = await interaction.deferReply({ fetchReply: true });
@@ -13,9 +13,9 @@ module.exports = {
     const wsLatency = interaction.client.ws.ping;
 
     const getLatencyColor = (ms) => {
-      if (ms < 100) return '#57F287'; // 绿
-      if (ms < 200) return '#FEE75C'; // 黄
-      return '#ED4245'; // 红
+      if (ms < 100) return '#57F287'; // Green
+      if (ms < 200) return '#FEE75C'; // Yellow
+      return '#ED4245'; // Red
     };
 
     const getLatencyEmoji = (ms) => {
@@ -29,12 +29,12 @@ module.exports = {
       .setTitle(`${config.emojis.ping} Pong!`)
       .addFields(
         {
-          name: `${getLatencyEmoji(roundtrip)} 往返延迟`,
+          name: `${getLatencyEmoji(roundtrip)} Roundtrip Latency`,
           value: `\`${roundtrip}ms\``,
           inline: true,
         },
         {
-          name: `${getLatencyEmoji(wsLatency)} WebSocket 延迟`,
+          name: `${getLatencyEmoji(wsLatency)} WebSocket Latency`,
           value: `\`${wsLatency}ms\``,
           inline: true,
         }

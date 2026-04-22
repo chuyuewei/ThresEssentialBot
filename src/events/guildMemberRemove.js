@@ -7,7 +7,7 @@ module.exports = {
   name: Events.GuildMemberRemove,
   once: false,
   async execute(member) {
-    Logger.info(`成员离开: ${member.user.tag} <- ${member.guild.name}`);
+    Logger.info(`Member left: ${member.user.tag} <- ${member.guild.name}`);
 
     if (!config.logs.enabled) return;
 
@@ -18,13 +18,13 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setColor(config.bot.errorColor)
-      .setTitle('📤 成员离开')
+      .setTitle('📤 Member Left')
       .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
       .addFields(
-        { name: '用户', value: `${member.user.tag}`, inline: true },
+        { name: 'User', value: `${member.user.tag}`, inline: true },
         { name: 'ID', value: member.id, inline: true },
-        { name: '加入时间', value: member.joinedAt ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : '未知', inline: true },
-        { name: '当前成员数', value: `${member.guild.memberCount}`, inline: true },
+        { name: 'Joined At', value: member.joinedAt ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : 'Unknown', inline: true },
+        { name: 'Current Members', value: `${member.guild.memberCount}`, inline: true },
       )
       .setTimestamp()
       .setFooter({ text: config.bot.name });

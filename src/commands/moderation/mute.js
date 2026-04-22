@@ -6,49 +6,49 @@ const config = require('../../../config');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('mute')
-    .setDescription(`${config.emojis.mute} 禁言一个用户 (Timeout)`)
-    .addUserOption((opt) => opt.setName('用户').setDescription('要禁言的用户').setRequired(true))
+    .setDescription(`${config.emojis.mute} Mute a user (Timeout)`)
+    .addUserOption((opt) => opt.setName('user').setDescription('User to mute').setRequired(true))
     .addIntegerOption((opt) =>
       opt
-        .setName('时长')
-        .setDescription('禁言时长（分钟）')
+        .setName('duration')
+        .setDescription('Mute duration (minutes)')
         .setMinValue(1)
-        .setMaxValue(40320) // 28 天
+        .setMaxValue(40320) // 28 days
         .setRequired(false)
     )
-    .addStringOption((opt) => opt.setName('原因').setDescription('禁言原因').setRequired(false))
+    .addStringOption((opt) => opt.setName('reason').setDescription('Mute reason').setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(interaction) {
-    const target = interaction.options.getUser('用户');
-    const duration = interaction.options.getInteger('时长') || config.moderation.defaultMuteDuration;
-    const reason = interaction.options.getString('原因') || '未提供原因';
+    const target = interaction.options.getUser('user');
+    const duration = interaction.options.getInteger('duration') || config.moderation.defaultMuteDuration;
+    const reason = interaction.options.getString('reason') || 'No reason provided';
     const member = await interaction.guild.members.fetch(target.id).catch(() => null);
 
     if (!member) {
       return interaction.reply({
-        embeds: [EmbedFactory.error('操作失败', '该用户不在此服务器中。')],
+        embeds: [EmbedFactory.error('Action Failed', 'This user is not in this server.')],
         ephemeral: true,
       });
     }
 
     if (target.id === interaction.user.id) {
       return interaction.reply({
-        embeds: [EmbedFactory.error('操作失败', '你不能禁言自己！')],
+        embeds: [EmbedFactory.error('Action Failed', 'You cannot mute yourself!')],
         ephemeral: true,
       });
     }
 
     if (!member.moderatable) {
       return interaction.reply({
-        embeds: [EmbedFactory.error('操作失败', '我无法禁言此用户。')],
+        embeds: [EmbedFactory.error('Action Failed', 'I cannot mute this user.')],
         ephemeral: true,
       });
     }
 
     if (member.roles.highest.position >= interaction.member.roles.highest.position) {
       return interaction.reply({
-        embeds: [EmbedFactory.error('权限不足', '你不能禁言一个角色等级 ≥ 你的用户。')],
+        embeds: [EmbedFactory.error('Permission Denied', 'You cannot mute a user with a role equal to or higher than yours.')],
         ephemeral: true,
       });
     }
@@ -57,40 +57,40 @@ module.exports = {
     await member.timeout(durationMs, `${interaction.user.tag}: ${reason}`);
 
     const embed = EmbedFactory.success(
-      '用户已禁言',
-      `**${target.tag}** 已被禁言 **${duration} 分钟**。`
+      'User Muted',
+      `**${target.tag}** has been muted for **${duration} minutes**.`
     );
     embed.addFields(
-      { name: '📝 原因', value: reason, inline: true },
-      { name: '⏰ 时长', value: `${duration} 分钟`, inline: true },
-      { name: '🛡️ 执行者', value: `${interaction.user}`, inline: true }
+      { name: '📝 Reason', value: reason, inline: true },
+      { name: '⏰ Duration', value: `${duration} minutes`, inline: true },
+      { name: '🛡️ Moderator', value: `${interaction.user}`, inline: true }
     );
 
     await interaction.reply({ embeds: [embed] });
 
-    // 私信
+    // DM
     try {
       await target.send({
         embeds: [
           EmbedFactory.warn(
-            '你已被禁言',
-            `你在 **${interaction.guild.name}** 被禁言了 **${duration} 分钟**。\n**原因：** ${reason}`
+            'You have been muted',
+            `You have been muted in **${interaction.guild.name}** for **${duration} minutes**.\n**Reason:** ${reason}`
           ),
         ],
       });
     } catch {}
 
-    // 日志
+    // Log
     const logCh = interaction.guild.channels.cache.find((c) => c.name === config.logs.channelName);
     if (logCh) {
       logCh.send({
         embeds: [
           EmbedFactory.modLog({
-            action: '禁言 (Mute)',
+            action: 'Mute',
             moderator: interaction.user,
             target,
             reason,
-            extra: { '⏰ 时长': `${duration} 分钟` },
+            extra: { '⏰ Duration': `${duration} minutes` },
           }),
         ],
       }).catch(() => {});

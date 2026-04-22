@@ -7,28 +7,28 @@ module.exports = {
   name: Events.ClientReady,
   once: true,
   execute(client) {
-    Logger.success(`${config.bot.name} 已上线！`);
-    Logger.info(`登录为: ${client.user.tag}`);
-    Logger.info(`服务器数量: ${client.guilds.cache.size}`);
-    Logger.info(`用户数量: ${client.guilds.cache.reduce((a, g) => a + g.memberCount, 0)}`);
+    Logger.success(`${config.bot.name} is online!`);
+    Logger.info(`Logged in as: ${client.user.tag}`);
+    Logger.info(`Server count: ${client.guilds.cache.size}`);
+    Logger.info(`User count: ${client.guilds.cache.reduce((a, g) => a + g.memberCount, 0)}`);
 
-    // 设置状态
+    // Set status
     client.user.setPresence({
       activities: [
         {
-          name: '🛡️ 守护服务器安全',
+          name: '🛡️ Protecting the server',
           type: ActivityType.Watching,
         },
       ],
       status: 'online',
     });
 
-    // 每 30 秒轮换状态
+    // Rotate status every 30 seconds
     const statuses = [
-      { name: '🛡️ 守护服务器安全', type: ActivityType.Watching },
-      { name: `📊 ${client.guilds.cache.size} 个服务器`, type: ActivityType.Watching },
-      { name: '⚡ /help 获取帮助', type: ActivityType.Playing },
-      { name: `👥 ${client.guilds.cache.reduce((a, g) => a + g.memberCount, 0)} 位用户`, type: ActivityType.Watching },
+      { name: '🛡️ Protecting the server', type: ActivityType.Watching },
+      { name: `📊 ${client.guilds.cache.size} servers`, type: ActivityType.Watching },
+      { name: '⚡ /help for help', type: ActivityType.Playing },
+      { name: `👥 ${client.guilds.cache.reduce((a, g) => a + g.memberCount, 0)} users`, type: ActivityType.Watching },
     ];
 
     let i = 0;
