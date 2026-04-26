@@ -2,12 +2,16 @@
 const { Events, EmbedBuilder } = require('discord.js');
 const config = require('../../config');
 const Logger = require('../utils/logger');
+const { applyPrefixes } = require('../commands/utility/prefixconfig');
 
 module.exports = {
   name: Events.GuildMemberAdd,
   once: false,
   async execute(member) {
     Logger.info(`Member joined: ${member.user.tag} -> ${member.guild.name}`);
+
+    // Auto apply prefixes
+    await autoApplyPrefixes(member);
 
     // Try to send to log channel
     if (!config.logs.enabled) return;
@@ -33,3 +37,18 @@ module.exports = {
     logChannel.send({ embeds: [embed] }).catch(() => {});
   },
 };
+
+async function autoApplyPrefixes(member) {
+  try {
+    const guildConfig = config.prefixConfig?.[member.guild.id];
+    if (!guildConfig || !guildConfig.enabled) return;
+
+    const prefixes = guildConfig.prefixes || [];
+    if (prefixes.length === 0) return;
+
+    await applyPrefixes(member, prefixes);
+    Logger.info(`Auto-applied prefixes to ${member.user.tag}`);
+  } catch (error) {
+    Logger.error(`Failed to auto-apply prefixes to ${member.user.tag}: ${error.message}`);
+  }
+}

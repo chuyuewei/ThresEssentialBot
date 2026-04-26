@@ -23,12 +23,9 @@ async function loadCommands(client) {
         client.commands.set(command.data.name, command);
         count++;
       } else {
-        Logger.warn(`命令 ${file} 缺少 "data" 或 "execute" 属性，已跳过`);
-      }
-    }
-  }
+Logger.warn(`Command ${file} is missing "data" or "execute" properties, skipped`);
 
-  Logger.success(`已加载 ${count} 个命令`);
+  Logger.success(`Loaded ${count} commands`);
 }
 
 module.exports = { loadCommands };

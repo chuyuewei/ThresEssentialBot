@@ -8,12 +8,18 @@
     "deploy": "node deploy-commands.js",
     "dev": "node --watch src/index.js"
   },
-  "keywords": ["discord", "bot", "moderation"],
+  "keywords": [
+    "discord",
+    "bot",
+    "moderation"
+  ],
   "author": "Thres",
   "license": "MIT",
   "dependencies": {
     "chalk": "^4.1.2",
     "discord.js": "^14.16.3",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "sequelize": "^6.37.8",
+    "sqlite3": "^6.0.1"
   }
 }

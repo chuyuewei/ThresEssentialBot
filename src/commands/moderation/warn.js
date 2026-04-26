@@ -1,117 +1,126 @@
 // src/commands/moderation/warn.js
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const EmbedFactory = require('../../utils/embed');
-const WarnManager = require('../../utils/warnManager');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const config = require('../../../config');
+const Logger = require('../../utils/logger');
+const db = require('../../database/models');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('warn')
-    .setDescription(`${config.emojis.warn} Warn a user`)
-    .addUserOption((opt) => opt.setName('user').setDescription('User to warn').setRequired(true))
-    .addStringOption((opt) => opt.setName('reason').setDescription('Warn reason').setRequired(true))
+    .setDescription('Warn user')
+    .addUserOption((option) =>
+      option
+        .setName('target')
+        .setDescription('User to warn')
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName('reason')
+        .setDescription('Warning reason')
+        .setRequired(true)
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(interaction) {
-    const target = interaction.options.getUser('user');
+    const target = interaction.options.getUser('target');
     const reason = interaction.options.getString('reason');
-    const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+    const moderator = interaction.user;
 
-    if (!member) {
-      return interaction.reply({
-        embeds: [EmbedFactory.error('Action Failed', 'This user is not in this server.')],
-        ephemeral: true,
-      });
-    }
-
-    if (target.bot) {
-      return interaction.reply({
-        embeds: [EmbedFactory.error('Action Failed', 'You cannot warn a Bot.')],
-        ephemeral: true,
-      });
-    }
-
-    // Add warning
-    const { warnings, count } = WarnManager.addWarning(
-      interaction.guild.id,
-      target.id,
-      reason,
-      interaction.user.id
-    );
-
-    const embed = EmbedFactory.warn(
-      'User Warned',
-      `**${target.tag}** has received a warning.`
-    );
-    embed.addFields(
-      { name: '📝 Reason', value: reason, inline: false },
-      { name: '⚠️ Total Warnings', value: `${count} / ${config.moderation.maxWarnings}`, inline: true },
-      { name: '🛡️ Moderator', value: `${interaction.user}`, inline: true }
-    );
-
-    await interaction.reply({ embeds: [embed] });
-
-    // DM
     try {
-      await target.send({
-        embeds: [
-          EmbedFactory.warn(
-            'You received a warning',
-            `You received a warning in **${interaction.guild.name}**.\n**Reason:** ${reason}\n**Current warnings:** ${count} / ${config.moderation.maxWarnings}`
-          ),
-        ],
+      // Create warning record
+      const warning = await db.Warnings.create({
+        user_id: target.id,
+        guild_id: interaction.guild.id,
+        moderator_id: moderator.id,
+        reason: reason,
+        type: 'warning',
+        is_active: true,
       });
-    } catch {}
 
-    // Check if max warnings reached
-    if (count >= config.moderation.maxWarnings) {
-      const action = config.moderation.autoActionOnMaxWarns;
-      let actionText = '';
+      // Update user warning count
+      const user = await db.Users.findOne({
+        where: { user_id: target.id, guild_id: interaction.guild.id },
+      });
 
-      try {
-        if (action === 'kick' && member.kickable) {
-          await member.kick(`Max warnings reached (${count})`);
-          actionText = 'kicked';
-        } else if (action === 'ban' && member.bannable) {
-          await interaction.guild.members.ban(target, {
-            reason: `Max warnings reached (${count})`,
-          });
-          actionText = 'banned';
-        } else if (action === 'mute' && member.moderatable) {
-          await member.timeout(24 * 60 * 60 * 1000, `Max warnings reached (${count})`);
-          actionText = 'muted for 24 hours';
-        }
+      if (user) {
+        await user.update({ warning_count: user.warning_count + 1 });
+      } else {
+        await db.Users.create({
+          user_id: target.id,
+          guild_id: interaction.guild.id,
+          username: target.username,
+          warning_count: 1,
+        });
+      }
 
-        if (actionText) {
-          await interaction.followUp({
-            embeds: [
-              EmbedFactory.error(
-                'Auto Punishment',
-                `**${target.tag}** has reached the maximum warning limit (${config.moderation.maxWarnings}). **${actionText}** has been automatically executed.`
-              ),
-            ],
-          });
+      // Send warning notification
+      const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+      if (member) {
+        const warnEmbed = new EmbedBuilder()
+          .setColor(config.bot.warnColor)
+          .setTitle('⚠️ You Received a Warning')
+          .setDescription(`You received a warning in ${interaction.guild.name}`)
+          .addFields(
+            { name: 'Reason', value: reason, inline: false },
+            { name: 'Warning ID', value: warning.id.toString(), inline: true },
+            { name: 'Moderator', value: moderator.tag, inline: true },
+          )
+          .setTimestamp()
+          .setFooter({ text: config.bot.name });
 
-          // Clear warnings
-          WarnManager.clearWarnings(interaction.guild.id, target.id);
-        }
-      } catch {}
-    }
+        await member.send({ embeds: [warnEmbed] }).catch(() => {});
+      }
 
-    // Log
-    const logCh = interaction.guild.channels.cache.find((c) => c.name === config.logs.channelName);
-    if (logCh) {
-      logCh.send({
-        embeds: [
-          EmbedFactory.modLog({
-            action: 'Warn',
-            moderator: interaction.user,
-            target,
-            reason,
-            extra: { '⚠️ Total Warnings': `${count} / ${config.moderation.maxWarnings}` },
-          }),
-        ],
-      }).catch(() => {});
+      // Reply to moderator
+      const replyEmbed = new EmbedBuilder()
+        .setColor(config.bot.successColor)
+        .setTitle('✅ Warning Sent')
+        .setDescription(`Warning has been sent to ${target}`)
+        .addFields(
+          { name: 'Reason', value: reason, inline: false },
+          { name: 'Warning ID', value: warning.id.toString(), inline: true },
+          { name: 'User', value: `${target} (${target.tag})`, inline: true },
+        )
+        .setTimestamp()
+        .setFooter({ text: config.bot.name });
+
+      await interaction.reply({ embeds: [replyEmbed] });
+
+      // Log to logs
+      if (config.logs.enabled) {
+        await logWarning(interaction, target, moderator, reason, warning.id);
+      }
+
+      Logger.info(`Warning sent to ${target.tag} by ${moderator.tag}: ${reason}`);
+    } catch (error) {
+      Logger.error(`Failed to warn user: ${error.message}`);
+      await interaction.reply({
+        content: 'Failed to send warning',
+        ephemeral: true,
+      });
     }
   },
 };
+
+async function logWarning(interaction, target, moderator, reason, warningId) {
+  const logChannel = interaction.guild.channels.cache.find(
+    (ch) => ch.name === config.logs.channelName
+  );
+
+  if (!logChannel) return;
+
+  const embed = new EmbedBuilder()
+    .setColor(config.bot.warnColor)
+    .setTitle('⚠️ User Warning')
+    .addFields(
+      { name: 'User', value: `${target} (${target.tag})`, inline: true },
+      { name: 'Moderator', value: `${moderator} (${moderator.tag})`, inline: true },
+      { name: 'Warning ID', value: warningId.toString(), inline: true },
+      { name: 'Reason', value: reason, inline: false },
+    )
+    .setTimestamp()
+    .setFooter({ text: config.bot.name });
+
+  await logChannel.send({ embeds: [embed] }).catch(() => {});
+}

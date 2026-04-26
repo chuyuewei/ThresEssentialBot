@@ -1,77 +1,119 @@
 // src/commands/moderation/kick.js
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const EmbedFactory = require('../../utils/embed');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const config = require('../../../config');
+const Logger = require('../../utils/logger');
+const db = require('../../database/models');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('kick')
-    .setDescription(`${config.emojis.kick} Kick a user`)
-    .addUserOption((opt) => opt.setName('user').setDescription('User to kick').setRequired(true))
-    .addStringOption((opt) => opt.setName('reason').setDescription('Kick reason').setRequired(false))
+    .setDescription('Kick user')
+    .addUserOption((option) =>
+      option
+        .setName('target')
+        .setDescription('User to kick')
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName('reason')
+        .setDescription('Kick reason')
+        .setRequired(false)
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
 
   async execute(interaction) {
-    const target = interaction.options.getUser('user');
+    const target = interaction.options.getUser('target');
     const reason = interaction.options.getString('reason') || 'No reason provided';
-    const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+    const moderator = interaction.user;
 
-    if (!member) {
-      return interaction.reply({
-        embeds: [EmbedFactory.error('Action Failed', 'This user is not in this server.')],
-        ephemeral: true,
-      });
-    }
-
-    if (target.id === interaction.user.id) {
-      return interaction.reply({
-        embeds: [EmbedFactory.error('Action Failed', 'You cannot kick yourself!')],
-        ephemeral: true,
-      });
-    }
-
-    if (member.roles.highest.position >= interaction.member.roles.highest.position) {
-      return interaction.reply({
-        embeds: [EmbedFactory.error('Permission Denied', 'You cannot kick a user with a role equal to or higher than yours.')],
-        ephemeral: true,
-      });
-    }
-
-    if (!member.kickable) {
-      return interaction.reply({
-        embeds: [EmbedFactory.error('Action Failed', 'I cannot kick this user. Please check my role permissions.')],
-        ephemeral: true,
-      });
-    }
-
-    // DM notification
     try {
-      await target.send({
-        embeds: [
-          EmbedFactory.warn(
-            'You have been kicked',
-            `You have been kicked from **${interaction.guild.name}**.\n**Reason:** ${reason}`
-          ),
-        ],
+      const member = await interaction.guild.members.fetch(target.id);
+
+      // Check permissions
+      if (!member.kickable) {
+        await interaction.reply({
+          content: 'Cannot kick this user (insufficient permissions)',
+          ephemeral: true,
+        });
+        return;
+      }
+
+      // Create warning record
+      await db.Warnings.create({
+        user_id: target.id,
+        guild_id: interaction.guild.id,
+        moderator_id: moderator.id,
+        reason: reason,
+        type: 'kick',
+        is_active: true,
       });
-    } catch {}
 
-    await member.kick(`${interaction.user.tag}: ${reason}`);
+      // Send notification
+      const kickEmbed = new EmbedBuilder()
+        .setColor(config.bot.errorColor)
+        .setTitle('👢 You Have Been Kicked')
+        .setDescription(`You have been kicked from ${interaction.guild.name}`)
+        .addFields(
+          { name: 'Reason', value: reason, inline: false },
+          { name: 'Moderator', value: moderator.tag, inline: true },
+        )
+        .setTimestamp()
+        .setFooter({ text: config.bot.name });
 
-    const embed = EmbedFactory.success('User Kicked', `**${target.tag}** has been successfully kicked.`);
-    embed.addFields(
-      { name: '📝 Reason', value: reason, inline: true },
-      { name: '🛡️ Moderator', value: `${interaction.user}`, inline: true }
-    );
+      await member.send({ embeds: [kickEmbed] }).catch(() => {});
 
-    await interaction.reply({ embeds: [embed] });
+      // Execute kick
+      await member.kick(reason);
 
-    // Log
-    const logCh = interaction.guild.channels.cache.find((c) => c.name === config.logs.channelName);
-    if (logCh) {
-      logCh.send({
-        embeds: [EmbedFactory.modLog({ action: 'Kick', moderator: interaction.user, target, reason })],
-      }).catch(() => {});
+      // Reply to moderator
+      const replyEmbed = new EmbedBuilder()
+        .setColor(config.bot.successColor)
+        .setTitle('✅ User Kicked')
+        .setDescription(`${target} has been kicked from the server`)
+        .addFields(
+          { name: 'Reason', value: reason, inline: false },
+          { name: 'User', value: `${target} (${target.tag})`, inline: true },
+          { name: 'Moderator', value: moderator.tag, inline: true },
+        )
+        .setTimestamp()
+        .setFooter({ text: config.bot.name });
+
+      await interaction.reply({ embeds: [replyEmbed] });
+
+      // Log to logs
+      if (config.logs.enabled) {
+        await logKick(interaction, target, moderator, reason);
+      }
+
+      Logger.info(`Kicked ${target.tag} by ${moderator.tag}: ${reason}`);
+    } catch (error) {
+      Logger.error(`Failed to kick user: ${error.message}`);
+      await interaction.reply({
+        content: 'Failed to kick user',
+        ephemeral: true,
+      });
     }
   },
 };
+
+async function logKick(interaction, target, moderator, reason) {
+  const logChannel = interaction.guild.channels.cache.find(
+    (ch) => ch.name === config.logs.channelName
+  );
+
+  if (!logChannel) return;
+
+  const embed = new EmbedBuilder()
+    .setColor(config.bot.errorColor)
+    .setTitle('👢 User Kick')
+    .addFields(
+      { name: 'User', value: `${target} (${target.tag})`, inline: true },
+      { name: 'Moderator', value: `${moderator} (${moderator.tag})`, inline: true },
+      { name: 'Reason', value: reason, inline: false },
+    )
+    .setTimestamp()
+    .setFooter({ text: config.bot.name });
+
+  await logChannel.send({ embeds: [embed] }).catch(() => {});
+}

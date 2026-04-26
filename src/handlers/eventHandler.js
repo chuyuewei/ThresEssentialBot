@@ -19,7 +19,7 @@ async function loadEvents(client) {
     count++;
   }
 
-  Logger.success(`已加载 ${count} 个事件`);
+  Logger.success(`Loaded ${count} events`);
 }
 
 module.exports = { loadEvents };

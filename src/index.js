@@ -5,9 +5,11 @@ const { loadCommands } = require('./handlers/commandHandler');
 const { loadEvents } = require('./handlers/eventHandler');
 const Logger = require('./utils/logger');
 const config = require('../config');
+const db = require('./database/models');
+const messageHistory = require('./utils/anti-spam/messageHistory');
 
 // ═══════════════════════════════════════════════
-// Thres // Essential — Discord Moderation Bot
+// ThresEssential — Discord Moderation Bot
 // ═══════════════════════════════════════════════
 
 const client = new Client({
@@ -25,30 +27,42 @@ const client = new Client({
   ],
 });
 
-// 命令集合
+// Command collection
 client.commands = new Collection();
-client.config = config;
 
-// 加载模块
-(async () => {
-  Logger.banner();
+// Load modules
+const start = async () => {
+  // Initialize database
+  try {
+    await db.sequelize.sync();
+    Logger.success('Database synchronized successfully');
+  } catch (error) {
+    Logger.error(`Database initialization failed: ${error.message}`);
+  }
+
+  // Start message history cleanup
+  messageHistory.startCleanup(60000); // Clean up every minute
+
+  // Load commands and events
   await loadCommands(client);
   await loadEvents(client);
 
-  // 登录
-  client.login(process.env.DISCORD_TOKEN).catch((err) => {
-    Logger.error(`登录失败: ${err.message}`);
-    process.exit(1);
-  });
-})();
+  // Login
+  await client.login(process.env.DISCORD_TOKEN);
+};
 
-// 全局错误处理
+start().catch((err) => {
+  Logger.error(`Login failed: ${err.message}`);
+  process.exit(1);
+});
+
+// Global error handling
 process.on('unhandledRejection', (err) => {
-  Logger.error(`未捕获的 Promise 异常: ${err.message}`);
+  Logger.error(`Unhandled Promise rejection: ${err.message}`);
   console.error(err);
 });
 
 process.on('uncaughtException', (err) => {
-  Logger.error(`未捕获的异常: ${err.message}`);
+  Logger.error(`Unhandled exception: ${err.message}`);
   console.error(err);
 });
