@@ -405,5 +405,3 @@ function removeExistingPrefixes(nickname, prefixes) {
 
   return result.trim();
 }
-
-}

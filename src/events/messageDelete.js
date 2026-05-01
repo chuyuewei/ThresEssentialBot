@@ -29,18 +29,22 @@ async function logMessageDelete(message) {
 
   if (!logChannel) return;
 
+  const attachments = message.attachments?.size > 0
+    ? [...message.attachments.values()].map(a => a.url).join('\n')
+    : 'None';
+
   const embed = new EmbedBuilder()
     .setColor(config.bot.errorColor)
-.setTitle('🗑️ Message Deleted')
+    .setTitle('🗑️ Message Deleted')
+    .addFields(
       { name: 'User', value: message.author ? `${message.author} (${message.author.tag})` : 'Unknown', inline: true },
       { name: 'Channel', value: `<#${message.channelId}>`, inline: true },
       { name: 'Message ID', value: message.id, inline: true },
-      name: 'Deleted Content',
-      name: 'Attachments',
-      value: attachments.substring(0, 1000),
-      inline: false,
-    });
-  }
+      { name: 'Deleted Content', value: message.content ? message.content.substring(0, 1000) : 'No content', inline: false },
+      { name: 'Attachments', value: attachments.substring(0, 1000), inline: false },
+    )
+    .setTimestamp()
+    .setFooter({ text: config.bot.name });
 
   await logChannel.send({ embeds: [embed] }).catch(() => {});
 }

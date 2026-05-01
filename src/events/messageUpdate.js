@@ -34,16 +34,16 @@ async function logMessageEdit(oldMessage, newMessage) {
 
   const embed = new EmbedBuilder()
     .setColor(config.bot.infoColor)
-.setTitle('✏️ Message Edited')
+    .setTitle('✏️ Message Edited')
+    .addFields(
       { name: 'User', value: `${newMessage.author} (${newMessage.author.tag})`, inline: true },
       { name: 'Channel', value: `<#${newMessage.channelId}>`, inline: true },
       { name: 'Message ID', value: newMessage.id, inline: true },
-      name: 'Original Content',
-      name: 'New Content',
-      value: newMessage.content.substring(0, 1000),
-      inline: false,
-    });
-  }
+      { name: 'Original Content', value: oldMessage.content.substring(0, 1000), inline: false },
+      { name: 'New Content', value: newMessage.content.substring(0, 1000), inline: false },
+    )
+    .setTimestamp()
+    .setFooter({ text: config.bot.name });
 
   await logChannel.send({ embeds: [embed] }).catch(() => {});
 }
