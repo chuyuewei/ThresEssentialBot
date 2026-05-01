@@ -90,6 +90,8 @@ module.exports = {
         break;
     }
   },
+  applyPrefixes,
+  removeExistingPrefixes,
 };
 
 async function showPrefixConfig(interaction) {
@@ -404,4 +406,4 @@ function removeExistingPrefixes(nickname, prefixes) {
   return result.trim();
 }
 
-module.exports = { applyPrefixes, removeExistingPrefixes };
+}

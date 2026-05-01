@@ -46,13 +46,7 @@ module.exports = {
             .setDescription('Emoji (required for reaction triggers)')
             .setRequired(false)
         )
-        .addRoleOption((option) =>
-          option
-            .setName('role')
-            .setDescription('Role to assign')
-            .setRequired(true)
         )
-    )
     .addSubcommand((subcommand) =>
       subcommand
         .setName('remove')

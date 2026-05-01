@@ -46,13 +46,12 @@ async function logAuditEvent(auditLogEntry, executor, target) {
   const logChannel = auditLogEntry.guild.channels.cache.find(
     (ch) => ch.name === config.logs.channelName
   );
-
   if (!logChannel) return;
 
   const { action, reason, changes, extra } = auditLogEntry;
 
   const actionNames = {
-[AuditLogEvent.MemberKick]: 'Member Kick',
+    [AuditLogEvent.MemberKick]: 'Member Kick',
     [AuditLogEvent.MemberBanAdd]: 'Member Ban',
     [AuditLogEvent.MemberBanRemove]: 'Member Unban',
     [AuditLogEvent.MemberRoleUpdate]: 'Role Change',
@@ -63,21 +62,28 @@ async function logAuditEvent(auditLogEntry, executor, target) {
     [AuditLogEvent.RoleCreate]: 'Role Create',
     [AuditLogEvent.RoleDelete]: 'Role Delete',
     [AuditLogEvent.RoleUpdate]: 'Role Update',
-
+  };
   const actionName = actionNames[action] || 'Unknown Action';
 
-    .setTitle('📋 Audit Log')
+  const embed = new EmbedBuilder()
+    .setColor(config.bot.infoColor)
+    .setTitle('Audit Log')
+    .addFields(
       { name: 'Action', value: actionName, inline: true },
       { name: 'Executor', value: executor ? `${executor} (${executor.user.tag})` : 'Unknown', inline: true },
+    )
+    .setTimestamp()
+    .setFooter({ text: config.bot.name });
 
-      name: 'Target',
-
-      name: 'Reason',
-
-      name: 'Changes',
-      value: changesText.substring(0, 1000),
-      inline: false,
-    });
+  if (target) {
+    embed.addFields({ name: 'Target', value: `${target} (${target.user.tag})`, inline: true });
+  }
+  if (reason) {
+    embed.addFields({ name: 'Reason', value: reason, inline: false });
+  }
+  if (changes && changes.length > 0) {
+    const changesText = changes.map(c => `**${c.key}**: ${c.old || 'None'} → ${c.new || 'None'}`).join('\n').substring(0, 1000);
+    embed.addFields({ name: 'Changes', value: changesText, inline: false });
   }
 
   await logChannel.send({ embeds: [embed] }).catch(() => {});
