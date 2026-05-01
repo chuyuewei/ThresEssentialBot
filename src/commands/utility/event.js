@@ -20,15 +20,15 @@ module.exports = {
         )
         .addStringOption((option) =>
           option
-            .setName('description')
-            .setDescription('Event description')
-            .setRequired(false)
-        )
-        .addStringOption((option) =>
-          option
             .setName('start_time')
             .setDescription('Start time (format: YYYY-MM-DD HH:mm)')
             .setRequired(true)
+        )
+        .addStringOption((option) =>
+          option
+            .setName('description')
+            .setDescription('Event description')
+            .setRequired(false)
         )
         .addStringOption((option) =>
           option

@@ -23,7 +23,10 @@ async function loadCommands(client) {
         client.commands.set(command.data.name, command);
         count++;
       } else {
-Logger.warn(`Command ${file} is missing "data" or "execute" properties, skipped`);
+        Logger.warn(`Command ${file} is missing "data" or "execute" properties, skipped`);
+      }
+    }
+  }
 
   Logger.success(`Loaded ${count} commands`);
 }

@@ -16,15 +16,15 @@ module.exports = {
     )
     .addStringOption((option) =>
       option
-        .setName('description')
-        .setDescription('Vote description')
-        .setRequired(false)
-    )
-    .addStringOption((option) =>
-      option
         .setName('options')
         .setDescription('Vote options (comma separated, max 10)')
         .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName('description')
+        .setDescription('Vote description')
+        .setRequired(false)
     )
     .addBooleanOption((option) =>
       option

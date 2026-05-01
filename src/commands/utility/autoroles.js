@@ -27,6 +27,12 @@ module.exports = {
               { name: 'Reaction', value: 'reaction' },
             )
         )
+        .addRoleOption((option) =>
+          option
+            .setName('role')
+            .setDescription('Role to assign')
+            .setRequired(true)
+        )
         .addIntegerOption((option) =>
           option
             .setName('level')

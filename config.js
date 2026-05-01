@@ -70,4 +70,8 @@ module.exports = {
       // { trigger: 'reaction', emoji: '🎮', roleId: 'role_id' },
     ],
   },
+  memberCount: {
+    channelId: null, // Voice channel ID for live member count display
+  },
+  inviteChannel: null, // Channel ID where invites are auto-posted (set via /invite setup)
 };

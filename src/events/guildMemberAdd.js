@@ -3,6 +3,7 @@ const { Events, EmbedBuilder } = require('discord.js');
 const config = require('../../config');
 const Logger = require('../utils/logger');
 const { applyPrefixes } = require('../commands/utility/prefixconfig');
+const { updateMemberCount } = require('../utils/memberCounter');
 
 module.exports = {
   name: Events.GuildMemberAdd,
@@ -12,6 +13,9 @@ module.exports = {
 
     // Auto apply prefixes
     await autoApplyPrefixes(member);
+
+    // Update live member count
+    await updateMemberCount(member.guild);
 
     // Try to send to log channel
     if (!config.logs.enabled) return;

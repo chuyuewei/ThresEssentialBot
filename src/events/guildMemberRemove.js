@@ -2,12 +2,16 @@
 const { Events, EmbedBuilder } = require('discord.js');
 const config = require('../../config');
 const Logger = require('../utils/logger');
+const { updateMemberCount } = require('../utils/memberCounter');
 
 module.exports = {
   name: Events.GuildMemberRemove,
   once: false,
   async execute(member) {
     Logger.info(`Member left: ${member.user.tag} <- ${member.guild.name}`);
+
+    // Update live member count
+    await updateMemberCount(member.guild);
 
     if (!config.logs.enabled) return;
 
