@@ -5,10 +5,36 @@ const fs = require('fs');
 const path = require('path');
 const Logger = require('./src/utils/logger');
 
+// ──────────────────────────────────────────
+// Mock: prevent native sqlite3 from loading
+// deploy-commands doesn't need the database
+// ──────────────────────────────────────────
+const Module = require('module');
+const originalRequire = Module.prototype.require;
+Module.prototype.require = function (id) {
+  if (id.includes('database/models') || id.includes('database')) {
+    // Return a harmless mock so Sequelize/sqlite3 never loads
+    return {
+      sequelize: { sync: () => Promise.resolve(), authenticate: () => Promise.resolve() },
+      Sequelize: { Op: {} },
+      Users: {},
+      Warnings: {},
+      Votes: {},
+      VoteOptions: {},
+      Reports: {},
+      Events: {},
+      EventParticipants: {},
+      Levels: {},
+      Tickets: {},
+    };
+  }
+  return originalRequire.apply(this, arguments);
+};
+
 const commands = [];
 const commandsPath = path.join(__dirname, 'src/commands');
 
-// 递归读取所有命令
+// Recursively read all commands
 function readCommands(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
 
@@ -28,27 +54,30 @@ function readCommands(dir) {
 
 readCommands(commandsPath);
 
+// Restore original require
+Module.prototype.require = originalRequire;
+
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
   try {
-    Logger.info(`开始注册 ${commands.length} 个斜杠命令...`);
+    Logger.info(`Registering ${commands.length} slash commands...`);
 
-    // 全局注册（生产环境）
+    // Global registration (production)
     // await rest.put(
     //   Routes.applicationCommands(process.env.CLIENT_ID),
     //   { body: commands }
     // );
 
-    // 测试服务器注册（开发环境，即时生效）
+    // Guild registration (dev, instant)
     await rest.put(
       Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
       { body: commands }
     );
 
-    Logger.success(`成功注册 ${commands.length} 个斜杠命令！`);
+    Logger.success(`Successfully registered ${commands.length} slash commands!`);
   } catch (error) {
-    Logger.error(`注册命令失败: ${error.message}`);
+    Logger.error(`Failed to register commands: ${error.message}`);
     console.error(error);
   }
 })();
