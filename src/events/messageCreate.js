@@ -99,17 +99,20 @@ async function sendWarning(message, detection) {
 
   await message.channel.send({
     content: `${message.author} ${warning}`,
-    ephemeral: true,
   }).catch(() => {});
 }
 
 async function addWarning(member, detection) {
   try {
-    const warning = await db.Warnings.create({
+    const description = detection.items && detection.items.length > 0
+      ? `Auto detection: ${detection.type} - ${detection.items.join(', ')}`
+      : `Auto detection: ${detection.type}`;
+
+    await db.Warnings.create({
       user_id: member.id,
       guild_id: member.guild.id,
       moderator_id: member.client.user.id,
-      reason: `Auto detection: ${detection.type} - ${JSON.stringify(detection)}`,
+      reason: description.substring(0, 500),
       type: 'warning',
       is_active: true,
     });

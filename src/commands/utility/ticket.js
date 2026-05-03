@@ -126,6 +126,8 @@ async function setupTicketSystem(interaction) {
   const title = interaction.options.getString('title') || '🎫 Need Help?';
   const description = interaction.options.getString('description') || 'Click the button below to create a new ticket, our support team will respond as soon as possible';
 
+  await interaction.deferReply();
+
   try {
     // Save configuration to database or config file
     if (!config.ticketConfig) {
@@ -174,15 +176,12 @@ async function setupTicketSystem(interaction) {
       .setTimestamp()
       .setFooter({ text: config.bot.name });
 
-    await interaction.reply({ embeds: [replyEmbed] });
+    await interaction.editReply({ embeds: [replyEmbed] });
 
     Logger.info(`Ticket system setup by ${interaction.user.tag}`);
   } catch (error) {
     Logger.error(`Failed to setup ticket system: ${error.message}`);
-    await interaction.reply({
-      content: 'Failed to setup ticket system',
-      ephemeral: true,
-    });
+    await interaction.editReply({ content: 'Failed to setup ticket system' }).catch(() => {});
   }
 }
 
@@ -190,13 +189,12 @@ async function createTicket(interaction) {
   const subject = interaction.options.getString('subject');
   const description = interaction.options.getString('description') || 'No description';
 
+  await interaction.deferReply();
+
   try {
     const ticketConfig = config.ticketConfig?.[interaction.guild.id];
     if (!ticketConfig) {
-      await interaction.reply({
-        content: 'Ticket system not set up, please contact an administrator',
-        ephemeral: true,
-      });
+      await interaction.editReply({ content: 'Ticket system not set up, please contact an administrator' });
       return;
     }
 
@@ -210,47 +208,29 @@ async function createTicket(interaction) {
     });
 
     if (existingTicket) {
-      await interaction.reply({
-        content: `You already have a ticket <#${existingTicket.channel_id}>, please close it or wait for it to be processed`,
-        ephemeral: true,
-      });
+      await interaction.editReply({ content: `You already have a ticket <#${existingTicket.channel_id}>, please close it or wait for it to be processed` });
       return;
     }
 
     // Create ticket channel
     const category = interaction.guild.channels.cache.get(ticketConfig.categoryId);
     if (!category) {
-      await interaction.reply({
-        content: 'Cannot find ticket category',
-        ephemeral: true,
-      });
+      await interaction.editReply({ content: 'Cannot find ticket category' });
       return;
     }
 
     const ticketNumber = await getNextTicketNumber(interaction.guild.id);
-    const channelName = `ticket-${ticketNumber}-${interaction.user.username}`;
+    const channelName = `ticket-${ticketNumber}-${interaction.user.username}`.substring(0, 100).replace(/[^a-z0-9\-]/gi, '-').toLowerCase();
 
     const ticketChannel = await interaction.guild.channels.create({
       name: channelName,
       type: 0, // Text channel
       parent: category,
       permissionOverwrites: [
-        {
-          id: interaction.guild.id,
-          deny: ['ViewChannel'],
-        },
-        {
-          id: interaction.user.id,
-          allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
-        },
-        {
-          id: ticketConfig.supportRoleId,
-          allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
-        },
-        {
-          id: interaction.client.user.id,
-          allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
-        },
+        { id: interaction.guild.id, deny: ['ViewChannel'] },
+        { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] },
+        { id: ticketConfig.supportRoleId, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] },
+        { id: interaction.client.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] },
       ],
     });
 
@@ -306,20 +286,19 @@ async function createTicket(interaction) {
       .setTimestamp()
       .setFooter({ text: config.bot.name });
 
-    await interaction.reply({ embeds: [replyEmbed] });
+    await interaction.editReply({ embeds: [replyEmbed] });
 
     Logger.info(`Ticket #${ticketNumber} created by ${interaction.user.tag}`);
   } catch (error) {
     Logger.error(`Failed to create ticket: ${error.message}`);
-    await interaction.reply({
-      content: 'Failed to create ticket',
-      ephemeral: true,
-    });
+    await interaction.editReply({ content: 'Failed to create ticket' }).catch(() => {});
   }
 }
 
 async function closeTicket(interaction) {
   const reason = interaction.options.getString('reason') || 'Ticket closed';
+
+  await interaction.deferReply();
 
   try {
     // Check if in ticket channel
@@ -332,10 +311,7 @@ async function closeTicket(interaction) {
     });
 
     if (!ticket) {
-      await interaction.reply({
-        content: 'This channel is not a ticket channel or ticket is already closed',
-        ephemeral: true,
-      });
+      await interaction.editReply({ content: 'This channel is not a ticket channel or ticket is already closed' });
       return;
     }
 
@@ -362,20 +338,19 @@ async function closeTicket(interaction) {
       .setTimestamp()
       .setFooter({ text: config.bot.name });
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
 
     Logger.info(`Ticket #${ticket.ticket_number} closed by ${interaction.user.tag}`);
   } catch (error) {
     Logger.error(`Failed to close ticket: ${error.message}`);
-    await interaction.reply({
-      content: 'Failed to close ticket',
-      ephemeral: true,
-    });
+    await interaction.editReply({ content: 'Failed to close ticket' }).catch(() => {});
   }
 }
 
 async function addUserToTicket(interaction) {
   const user = interaction.options.getUser('user');
+
+  await interaction.deferReply();
 
   try {
     const ticket = await db.Tickets.findOne({
@@ -387,10 +362,7 @@ async function addUserToTicket(interaction) {
     });
 
     if (!ticket) {
-      await interaction.reply({
-        content: 'This channel is not a ticket channel or ticket is already closed',
-        ephemeral: true,
-      });
+      await interaction.editReply({ content: 'This channel is not a ticket channel or ticket is already closed' });
       return;
     }
 
@@ -408,20 +380,19 @@ async function addUserToTicket(interaction) {
       .setTimestamp()
       .setFooter({ text: config.bot.name });
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
 
     Logger.info(`User ${user.tag} added to ticket #${ticket.ticket_number} by ${interaction.user.tag}`);
   } catch (error) {
     Logger.error(`Failed to add user to ticket: ${error.message}`);
-    await interaction.reply({
-      content: 'Failed to add user',
-      ephemeral: true,
-    });
+    await interaction.editReply({ content: 'Failed to add user' }).catch(() => {});
   }
 }
 
 async function removeUserFromTicket(interaction) {
   const user = interaction.options.getUser('user');
+
+  await interaction.deferReply();
 
   try {
     const ticket = await db.Tickets.findOne({
@@ -433,10 +404,7 @@ async function removeUserFromTicket(interaction) {
     });
 
     if (!ticket) {
-      await interaction.reply({
-        content: 'This channel is not a ticket channel or ticket is already closed',
-        ephemeral: true,
-      });
+      await interaction.editReply({ content: 'This channel is not a ticket channel or ticket is already closed' });
       return;
     }
 
@@ -453,19 +421,18 @@ async function removeUserFromTicket(interaction) {
       .setTimestamp()
       .setFooter({ text: config.bot.name });
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
 
     Logger.info(`User ${user.tag} removed from ticket #${ticket.ticket_number} by ${interaction.user.tag}`);
   } catch (error) {
     Logger.error(`Failed to remove user from ticket: ${error.message}`);
-    await interaction.reply({
-      content: 'Failed to remove user',
-      ephemeral: true,
-    });
+    await interaction.editReply({ content: 'Failed to remove user' }).catch(() => {});
   }
 }
 
 async function generateTranscript(interaction) {
+  await interaction.deferReply();
+
   try {
     const ticket = await db.Tickets.findOne({
       where: {
@@ -475,10 +442,7 @@ async function generateTranscript(interaction) {
     });
 
     if (!ticket) {
-      await interaction.reply({
-        content: 'This channel is not a ticket channel',
-        ephemeral: true,
-      });
+      await interaction.editReply({ content: 'This channel is not a ticket channel' });
       return;
     }
 
@@ -508,7 +472,7 @@ async function generateTranscript(interaction) {
       .setTimestamp()
       .setFooter({ text: config.bot.name });
 
-    await interaction.reply({
+    await interaction.editReply({
       embeds: [embed],
       files: [
         {
@@ -521,10 +485,7 @@ async function generateTranscript(interaction) {
     Logger.info(`Transcript generated for ticket #${ticket.ticket_number} by ${interaction.user.tag}`);
   } catch (error) {
     Logger.error(`Failed to generate transcript: ${error.message}`);
-    await interaction.reply({
-      content: 'Failed to generate transcript',
-      ephemeral: true,
-    });
+    await interaction.editReply({ content: 'Failed to generate transcript' }).catch(() => {});
   }
 }
 

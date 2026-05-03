@@ -165,10 +165,12 @@ async function showLevelRoles(interaction) {
     await interaction.reply({ embeds: [embed] });
   } catch (error) {
     Logger.error(`Failed to show level roles: ${error.message}`);
-    await interaction.reply({
-      content: 'Failed to get level role configuration',
-      ephemeral: true,
-    });
+    const reply = { content: 'Failed to get level role configuration', ephemeral: true };
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp(reply).catch(() => {});
+    } else {
+      await interaction.reply(reply).catch(() => {});
+    }
   }
 }
 
@@ -218,10 +220,12 @@ async function addLevelRole(interaction) {
     Logger.info(`Level role added: Level ${level} -> ${role.name} by ${interaction.user.tag}`);
   } catch (error) {
     Logger.error(`Failed to add level role: ${error.message}`);
-    await interaction.reply({
-      content: 'Failed to add level role',
-      ephemeral: true,
-    });
+    const reply = { content: 'Failed to add level role', ephemeral: true };
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp(reply).catch(() => {});
+    } else {
+      await interaction.reply(reply).catch(() => {});
+    }
   }
 }
 
@@ -254,10 +258,12 @@ async function removeLevelRole(interaction) {
     Logger.info(`Level role removed: Level ${level} by ${interaction.user.tag}`);
   } catch (error) {
     Logger.error(`Failed to remove level role: ${error.message}`);
-    await interaction.reply({
-      content: 'Failed to remove level role',
-      ephemeral: true,
-    });
+    const reply = { content: 'Failed to remove level role', ephemeral: true };
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp(reply).catch(() => {});
+    } else {
+      await interaction.reply(reply).catch(() => {});
+    }
   }
 }
 
@@ -267,15 +273,16 @@ async function updateLevelRole(interaction) {
   const role = interaction.options.getRole('role');
   const requiredXP = interaction.options.getInteger('required_xp');
 
+  await interaction.deferReply();
+
   try {
     const levelRole = await db.Levels.findOne({
       where: { guild_id: interaction.guild.id, level: level },
     });
 
     if (!levelRole) {
-      await interaction.reply({
+      await interaction.editReply({
         content: 'Cannot find level configuration',
-        ephemeral: true,
       });
       return;
     }
@@ -298,18 +305,19 @@ async function updateLevelRole(interaction) {
       .setTimestamp()
       .setFooter({ text: config.bot.name });
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
     Logger.info(`Level role updated: Level ${level} by ${interaction.user.tag}`);
   } catch (error) {
     Logger.error(`Failed to update level role: ${error.message}`);
-    await interaction.reply({
+    await interaction.editReply({
       content: 'Failed to update level role',
-      ephemeral: true,
-    });
+    }).catch(() => {});
   }
 }
 
 async function syncLevelRoles(interaction) {
+  await interaction.deferReply();
+
   try {
     const users = await db.Users.findAll({
       where: { guild_id: interaction.guild.id },
@@ -333,14 +341,13 @@ async function syncLevelRoles(interaction) {
       .setTimestamp()
       .setFooter({ text: config.bot.name });
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
     Logger.info(`Level roles synced by ${interaction.user.tag}: ${updatedCount}/${users.length} users`);
   } catch (error) {
     Logger.error(`Failed to sync level roles: ${error.message}`);
-    await interaction.reply({
+    await interaction.editReply({
       content: 'Failed to sync level roles',
-      ephemeral: true,
-    });
+    }).catch(() => {});
   }
 }
 
@@ -387,10 +394,12 @@ async function importDefaultLevels(interaction) {
     Logger.info(`Default levels imported by ${interaction.user.tag}: ${createdCount} created, ${updatedCount} updated`);
   } catch (error) {
     Logger.error(`Failed to import default levels: ${error.message}`);
-    await interaction.reply({
-      content: 'Failed to import default level configuration',
-      ephemeral: true,
-    });
+    const reply = { content: 'Failed to import default level configuration', ephemeral: true };
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp(reply).catch(() => {});
+    } else {
+      await interaction.reply(reply).catch(() => {});
+    }
   }
 }
 

@@ -39,27 +39,32 @@ module.exports = {
         }
       }
     }
-    // Handle button interactions
+    // Handle button interactions (check specific IDs first)
     else if (interaction.isButton()) {
-      await handleButtonInteraction(interaction);
+      const { customId } = interaction;
+
+      if (customId.startsWith('report_')) {
+        await handleReportButton(interaction);
+      } else if (customId.startsWith('ticket_')) {
+        await handleTicketButton(interaction);
+      } else {
+        // Generic button handler (rules, etc.)
+        await handleButtonInteraction(interaction);
+      }
     }
     // Handle select menu interactions
     else if (interaction.isStringSelectMenu()) {
       await handleSelectMenuInteraction(interaction);
     }
-    // Handle report button interactions
-    else if (interaction.isButton() && interaction.customId.startsWith('report_')) {
-      await handleReportButton(interaction);
-    }
-    // Handle ticket button interactions
-    else if (interaction.isButton() && interaction.customId.startsWith('ticket_')) {
-      await handleTicketButton(interaction);
+    // Handle modal submissions
+    else if (interaction.isModalSubmit()) {
+      await handleModalSubmit(interaction);
     }
   },
 };
 
 async function handleButtonInteraction(interaction) {
-  const { customId, user, guild } = interaction;
+  const { customId } = interaction;
 
   try {
     // Handle rules confirmation buttons
@@ -67,10 +72,131 @@ async function handleButtonInteraction(interaction) {
       await handleRulesAccept(interaction);
     } else if (customId === 'rules_decline') {
       await handleRulesDecline(interaction);
+    } else {
+      // Unknown button - acknowledge to prevent interaction timeout
+      await interaction.reply({ content: 'This button is no longer active.', ephemeral: true }).catch(() => {});
     }
   } catch (error) {
     Logger.error(`Error handling button interaction ${customId}: ${error.message}`);
     console.error(error);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: 'An error occurred.', ephemeral: true }).catch(() => {});
+    }
+  }
+}
+
+/**
+ * Handle modal submissions
+ */
+async function handleModalSubmit(interaction) {
+  const { customId } = interaction;
+
+  try {
+    if (customId === 'ticket_create_modal') {
+      await handleTicketModalSubmit(interaction);
+    } else {
+      await interaction.reply({ content: 'Unknown modal submission.', ephemeral: true }).catch(() => {});
+    }
+  } catch (error) {
+    Logger.error(`Error handling modal submission ${customId}: ${error.message}`);
+    console.error(error);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: 'Failed to process submission.', ephemeral: true }).catch(() => {});
+    }
+  }
+}
+
+/**
+ * Handle ticket creation modal submission
+ */
+async function handleTicketModalSubmit(interaction) {
+  const subject = interaction.fields.getTextInputValue('subject');
+  const description = interaction.fields.getTextInputValue('description') || 'No description';
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const ticketConfig = config.ticketConfig?.[interaction.guild.id];
+    if (!ticketConfig) {
+      await interaction.editReply({ content: 'Ticket system is not set up. Please contact an administrator.' });
+      return;
+    }
+
+    // Check if user already has an open ticket
+    const existingTicket = await db.Tickets.findOne({
+      where: { user_id: interaction.user.id, guild_id: interaction.guild.id, status: 'open' },
+    });
+
+    if (existingTicket) {
+      await interaction.editReply({ content: `You already have an open ticket: <#${existingTicket.channel_id}>. Please close it first.` });
+      return;
+    }
+
+    // Get ticket config
+    const category = interaction.guild.channels.cache.get(ticketConfig.categoryId);
+    if (!category) {
+      await interaction.editReply({ content: 'Cannot find the ticket category. Please contact an administrator.' });
+      return;
+    }
+
+    // Get next ticket number
+    const lastTicket = await db.Tickets.findOne({
+      where: { guild_id: interaction.guild.id },
+      order: [['ticket_number', 'DESC']],
+    });
+    const ticketNumber = lastTicket ? lastTicket.ticket_number + 1 : 1;
+
+    // Create ticket channel
+    const channelName = `ticket-${ticketNumber}-${interaction.user.username}`.substring(0, 100).replace(/[^a-z0-9\-]/gi, '-').toLowerCase();
+    const ticketChannel = await interaction.guild.channels.create({
+      name: channelName,
+      type: 0,
+      parent: category,
+      permissionOverwrites: [
+        { id: interaction.guild.id, deny: ['ViewChannel'] },
+        { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] },
+        { id: ticketConfig.supportRoleId, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] },
+        { id: interaction.client.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] },
+      ],
+    });
+
+    // Save ticket to database
+    const ticket = await db.Tickets.create({
+      guild_id: interaction.guild.id,
+      user_id: interaction.user.id,
+      channel_id: ticketChannel.id,
+      subject: subject,
+      description: description,
+      status: 'open',
+      ticket_number: ticketNumber,
+    });
+
+    // Create ticket panel message in the channel
+    const embed = new EmbedBuilder()
+      .setColor(config.bot.successColor)
+      .setTitle(`🎫 Ticket #${ticketNumber}`)
+      .setDescription(`**Subject**: ${subject}\n**Description**: ${description}`)
+      .addFields(
+        { name: 'Creator', value: `${interaction.user}`, inline: true },
+        { name: 'Status', value: '🟢 Open', inline: true },
+      )
+      .setTimestamp()
+      .setFooter({ text: config.bot.name });
+
+    const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`ticket_close_${ticket.id}`).setLabel('🔒 Close Ticket').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId(`ticket_transcript_${ticket.id}`).setLabel('📄 Generate Transcript').setStyle(ButtonStyle.Secondary),
+    );
+
+    await ticketChannel.send({ content: `<@${interaction.user.id}> <@&${ticketConfig.supportRoleId}>`, embeds: [embed], components: [row] });
+
+    await interaction.editReply({ content: `✅ Your ticket #${ticketNumber} has been created: <#${ticketChannel.id}>` });
+
+    Logger.info(`Ticket #${ticketNumber} created by ${interaction.user.tag} (via modal)`);
+  } catch (error) {
+    Logger.error(`Failed to create ticket via modal: ${error.message}`);
+    await interaction.editReply({ content: 'Failed to create ticket. Please try again.' }).catch(() => {});
   }
 }
 
@@ -156,6 +282,9 @@ async function handleSelectMenuInteraction(interaction) {
   } catch (error) {
     Logger.error(`Error handling select menu interaction ${customId}: ${error.message}`);
     console.error(error);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: 'An error occurred.', ephemeral: true }).catch(() => {});
+    }
   }
 }
 
@@ -248,10 +377,12 @@ async function handleVoteSelection(interaction) {
     Logger.info(`${user.tag} voted in poll ${voteId}`);
   } catch (error) {
     Logger.error(`Failed to handle vote selection: ${error.message}`);
-    await interaction.reply({
-      content: 'Failed to vote',
-      ephemeral: true,
-    });
+    const errorMsg = { content: 'Failed to vote', ephemeral: true };
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp(errorMsg).catch(() => {});
+    } else {
+      await interaction.reply(errorMsg).catch(() => {});
+    }
   }
 }
 
@@ -309,10 +440,12 @@ async function handleReportButton(interaction) {
     Logger.info(`Report ${reportId} ${action}ed by ${user.tag}`);
   } catch (error) {
     Logger.error(`Failed to handle report button: ${error.message}`);
-    await interaction.reply({
-      content: 'Failed to process',
-      ephemeral: true,
-    });
+    const errorMsg = { content: 'Failed to process', ephemeral: true };
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp(errorMsg).catch(() => {});
+    } else {
+      await interaction.reply(errorMsg).catch(() => {});
+    }
   }
 }
 
@@ -362,16 +495,15 @@ async function handleTicketButton(interaction) {
 
       await interaction.showModal(modal);
     } else if (action === 'close') {
-      // Close ticket button
+      // Close ticket button — defer since we do API calls
+      await interaction.deferUpdate();
+
       const ticket = await db.Tickets.findOne({
         where: { id: parseInt(ticketId), guild_id: interaction.guild.id, status: 'open' },
       });
 
       if (!ticket) {
-        await interaction.reply({
-          content: 'Ticket does not exist or is already closed',
-          ephemeral: true,
-        });
+        await interaction.followUp({ content: 'Ticket does not exist or is already closed', ephemeral: true });
         return;
       }
 
@@ -382,9 +514,9 @@ async function handleTicketButton(interaction) {
         close_reason: 'Manual close',
       });
 
-      // Lock channel
-      await interaction.channel.permissionOverwrites.edit(interaction.guild.id, { ViewChannel: false });
-      await interaction.channel.permissionOverwrites.edit(ticket.user_id, { ViewChannel: false, SendMessages: false });
+      // Lock channel (non-critical, catch silently)
+      await interaction.channel.permissionOverwrites.edit(interaction.guild.id, { ViewChannel: false }).catch(() => {});
+      await interaction.channel.permissionOverwrites.edit(ticket.user_id, { ViewChannel: false, SendMessages: false }).catch(() => {});
 
       const embed = new EmbedBuilder()
         .setColor(config.bot.warnColor)
@@ -396,20 +528,19 @@ async function handleTicketButton(interaction) {
         .setTimestamp()
         .setFooter({ text: config.bot.name });
 
-      await interaction.update({ embeds: [embed], components: [] });
+      await interaction.editReply({ embeds: [embed], components: [] });
 
       Logger.info(`Ticket #${ticket.ticket_number} closed by ${user.tag}`);
     } else if (action === 'transcript') {
-      // Generate transcript button
+      // Generate transcript button — defer since we fetch messages
+      await interaction.deferReply();
+
       const ticket = await db.Tickets.findOne({
         where: { id: parseInt(ticketId), guild_id: interaction.guild.id },
       });
 
       if (!ticket) {
-        await interaction.reply({
-          content: 'Ticket does not exist',
-          ephemeral: true,
-        });
+        await interaction.editReply({ content: 'Ticket does not exist' });
         return;
       }
 
@@ -438,7 +569,7 @@ async function handleTicketButton(interaction) {
         .setTimestamp()
         .setFooter({ text: config.bot.name });
 
-      await interaction.reply({
+      await interaction.editReply({
         embeds: [embed],
         files: [
           {
@@ -452,9 +583,11 @@ async function handleTicketButton(interaction) {
     }
   } catch (error) {
     Logger.error(`Failed to handle ticket button: ${error.message}`);
-    await interaction.reply({
-      content: 'Failed to process',
-      ephemeral: true,
-    });
+    const errorMsg = { content: 'Failed to process', ephemeral: true };
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp(errorMsg).catch(() => {});
+    } else {
+      await interaction.reply(errorMsg).catch(() => {});
+    }
   }
 }

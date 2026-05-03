@@ -118,57 +118,66 @@ async function setupRules(interaction) {
 }
 
 async function resetRules(interaction) {
-  // Get all users who haven't accepted rules
-  const users = await db.Users.findAll({
-    where: {
-      guild_id: interaction.guild.id,
-      rules_accepted: false,
-    },
-  });
+  await interaction.deferReply();
 
-  if (users.length === 0) {
-    await interaction.reply({ content: 'No users need to be reset', ephemeral: true });
-    return;
-  }
+  try {
+    // Get all users who haven't accepted rules
+    const users = await db.Users.findAll({
+      where: {
+        guild_id: interaction.guild.id,
+        rules_accepted: false,
+      },
+    });
 
-  // Send notification message
-  const channel = interaction.guild.channels.cache.find(
-    (ch) => ch.name === config.autoRoles.rulesChannel
-  );
-
-  if (!channel) {
-    await interaction.reply({ content: 'Cannot find rules channel', ephemeral: true });
-    return;
-  }
-
-  const embed = new EmbedBuilder()
-    .setColor(config.bot.warnColor)
-    .setTitle('⚠️ Please Confirm Server Rules')
-    .setDescription(`We noticed you haven't confirmed the server rules yet. Please go to <#${channel.id}> to confirm the rules and get full access.`)
-    .setTimestamp()
-    .setFooter({ text: config.bot.name });
-
-  let successCount = 0;
-  let failCount = 0;
-
-  for (const user of users) {
-    try {
-      const member = await interaction.guild.members.fetch(user.user_id);
-      await member.send({ embeds: [embed] }).catch(() => {});
-      successCount++;
-    } catch (error) {
-      failCount++;
+    if (users.length === 0) {
+      await interaction.editReply({ content: 'No users need to be reset' });
+      return;
     }
+
+    // Send notification message
+    const channel = interaction.guild.channels.cache.find(
+      (ch) => ch.name === config.autoRoles.rulesChannel
+    );
+
+    if (!channel) {
+      await interaction.editReply({ content: 'Cannot find rules channel' });
+      return;
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(config.bot.warnColor)
+      .setTitle('⚠️ Please Confirm Server Rules')
+      .setDescription(`We noticed you haven't confirmed the server rules yet. Please go to <#${channel.id}> to confirm the rules and get full access.`)
+      .setTimestamp()
+      .setFooter({ text: config.bot.name });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const user of users) {
+      try {
+        const member = await interaction.guild.members.fetch(user.user_id).catch(() => null);
+        if (member) {
+          await member.send({ embeds: [embed] }).catch(() => { failCount--; });
+        }
+        successCount++;
+      } catch (error) {
+        failCount++;
+      }
+    }
+
+    const replyEmbed = new EmbedBuilder()
+      .setColor(config.bot.successColor)
+      .setTitle('✅ Rules Reset Complete')
+      .setDescription(`Sent notifications to ${successCount} users\nFailed: ${failCount} users`)
+      .setTimestamp()
+      .setFooter({ text: config.bot.name });
+
+    await interaction.editReply({ embeds: [replyEmbed] });
+
+    Logger.info(`Rules reset completed by ${interaction.user.tag}: ${successCount} users notified`);
+  } catch (error) {
+    Logger.error(`Failed to reset rules: ${error.message}`);
+    await interaction.editReply({ content: 'Failed to reset rules' }).catch(() => {});
   }
-
-  const replyEmbed = new EmbedBuilder()
-    .setColor(config.bot.successColor)
-    .setTitle('✅ Rules Reset Complete')
-    .setDescription(`Sent notifications to ${successCount} users\nFailed: ${failCount} users`)
-    .setTimestamp()
-    .setFooter({ text: config.bot.name });
-
-  await interaction.reply({ embeds: [replyEmbed] });
-
-  Logger.info(`Rules reset completed by ${interaction.user.tag}: ${successCount} users notified`);
 }

@@ -7,9 +7,12 @@ module.exports = {
   name: Events.GuildAuditLogEntryCreate,
   once: false,
   async execute(auditLogEntry) {
-    const { action, executorId, targetId, changes, extra } = auditLogEntry;
+    const { action, executorId, targetId } = auditLogEntry;
 
-    // 只记录重要的事件
+    // Guard: ensure guild is available (may be missing for transient/uncached entries)
+    if (!auditLogEntry.guild) return;
+
+    // Only log important events
     const importantEvents = [
       AuditLogEvent.MemberKick,
       AuditLogEvent.MemberBanAdd,
@@ -27,15 +30,20 @@ module.exports = {
     if (!importantEvents.includes(action)) return;
 
     try {
-      const executor = await auditLogEntry.guild.members.fetch(executorId).catch(() => null);
-      const target = await auditLogEntry.guild.members.fetch(targetId).catch(() => null);
+      // Fetch executor and target (executorId may be null for system actions)
+      const executor = executorId
+        ? await auditLogEntry.guild.members.fetch(executorId).catch(() => null)
+        : null;
+      const target = targetId
+        ? await auditLogEntry.guild.members.fetch(targetId).catch(() => null)
+        : null;
 
-      // 记录到日志
+      // Log to channel
       if (config.logs.enabled) {
         await logAuditEvent(auditLogEntry, executor, target);
       }
 
-      Logger.info(`Audit log entry: ${action} by ${executor?.user.tag || 'Unknown'}`);
+      Logger.info(`Audit log entry: ${action} by ${executor?.user.tag || 'System'}`);
     } catch (error) {
       Logger.error(`Failed to process audit log entry: ${error.message}`);
     }
@@ -48,7 +56,7 @@ async function logAuditEvent(auditLogEntry, executor, target) {
   );
   if (!logChannel) return;
 
-  const { action, reason, changes, extra } = auditLogEntry;
+  const { action, reason, changes } = auditLogEntry;
 
   const actionNames = {
     [AuditLogEvent.MemberKick]: 'Member Kick',
@@ -70,7 +78,7 @@ async function logAuditEvent(auditLogEntry, executor, target) {
     .setTitle('Audit Log')
     .addFields(
       { name: 'Action', value: actionName, inline: true },
-      { name: 'Executor', value: executor ? `${executor} (${executor.user.tag})` : 'Unknown', inline: true },
+      { name: 'Executor', value: executor ? `${executor} (${executor.user.tag})` : 'System', inline: true },
     )
     .setTimestamp()
     .setFooter({ text: config.bot.name });
@@ -82,8 +90,11 @@ async function logAuditEvent(auditLogEntry, executor, target) {
     embed.addFields({ name: 'Reason', value: reason, inline: false });
   }
   if (changes && changes.length > 0) {
-    const changesText = changes.map(c => `**${c.key}**: ${c.old || 'None'} → ${c.new || 'None'}`).join('\n').substring(0, 1000);
-    embed.addFields({ name: 'Changes', value: changesText, inline: false });
+    const changesText = changes
+      .map(c => `**${c.key}**: ${c.old || 'None'} → ${c.new || 'None'}`)
+      .join('\n')
+      .substring(0, 1000);
+    embed.addFields({ name: 'Changes', value: changesText || 'No changes', inline: false });
   }
 
   await logChannel.send({ embeds: [embed] }).catch(() => {});

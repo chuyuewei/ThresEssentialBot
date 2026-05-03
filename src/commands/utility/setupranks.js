@@ -88,6 +88,11 @@ module.exports = {
 
     const sync = interaction.options.getBoolean('sync') || false;
 
+    // Defer if syncing (potentially long operation)
+    if (sync) {
+      await interaction.deferReply();
+    }
+
     try {
       // Define 5 rank configurations
       const rankConfigs = [
@@ -130,8 +135,12 @@ module.exports = {
         });
 
         for (const user of users) {
-          const result = await checkAndAssignRankRoles(interaction.guild, user);
-          if (result) syncedCount++;
+          try {
+            const result = await checkAndAssignRankRoles(interaction.guild, user);
+            if (result) syncedCount++;
+          } catch (err) {
+            Logger.error(`Failed to sync ranks for ${user.user_id}: ${err.message}`);
+          }
         }
       }
 
@@ -161,15 +170,21 @@ module.exports = {
         .setTimestamp()
         .setFooter({ text: config.bot.name });
 
-      await interaction.reply({ embeds: [embed] });
+      if (sync) {
+        await interaction.editReply({ embeds: [embed] });
+      } else {
+        await interaction.reply({ embeds: [embed] });
+      }
 
       Logger.info(`5-rank system setup by ${interaction.user.tag}: ${createdCount} created, ${updatedCount} updated, ${syncedCount} synced`);
     } catch (error) {
       Logger.error(`Failed to setup ranks: ${error.message}`);
-      await interaction.reply({
-        content: 'Failed to setup rank system',
-        ephemeral: true,
-      });
+      const errorMsg = { content: 'Failed to setup rank system', ephemeral: true };
+      if (sync) {
+        await interaction.editReply(errorMsg).catch(() => {});
+      } else {
+        await interaction.reply(errorMsg).catch(() => {});
+      }
     }
   },
 };

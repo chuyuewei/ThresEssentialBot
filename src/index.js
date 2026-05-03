@@ -1,5 +1,5 @@
 // src/index.js
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
 const { loadCommands } = require('./handlers/commandHandler');
 const { loadEvents } = require('./handlers/eventHandler');

@@ -204,38 +204,57 @@ async function checkAutoRoles(interaction) {
   let processedCount = 0;
   let successCount = 0;
 
-  if (targetUser) {
-    // Check single user
-    const result = await processUserAutoRoles(interaction.guild, targetUser.id);
-    processedCount = 1;
-    successCount = result ? 1 : 0;
-  } else {
-    // Check all users
-    const users = await db.Users.findAll({
-      where: { guild_id: interaction.guild.id },
-    });
-
-    for (const user of users) {
-      try {
-        const result = await processUserAutoRoles(interaction.guild, user.user_id);
-        processedCount++;
-        if (result) successCount++;
-      } catch (error) {
-        Logger.error(`Failed to process auto-roles for ${user.user_id}: ${error.message}`);
-      }
-    }
+  // Defer if checking all users (potentially long operation)
+  if (!targetUser) {
+    await interaction.deferReply();
   }
 
-  const embed = new EmbedBuilder()
-    .setColor(config.bot.successColor)
-    .setTitle('✅ Auto-Role Check Complete')
-    .setDescription(`Processed users: ${processedCount}\nSuccessfully assigned: ${successCount}`)
-    .setTimestamp()
-    .setFooter({ text: config.bot.name });
+  try {
+    if (targetUser) {
+      // Check single user
+      const result = await processUserAutoRoles(interaction.guild, targetUser.id);
+      processedCount = 1;
+      successCount = result ? 1 : 0;
+    } else {
+      // Check all users
+      const users = await db.Users.findAll({
+        where: { guild_id: interaction.guild.id },
+      });
 
-  await interaction.reply({ embeds: [embed] });
+      for (const user of users) {
+        try {
+          const result = await processUserAutoRoles(interaction.guild, user.user_id);
+          processedCount++;
+          if (result) successCount++;
+        } catch (error) {
+          Logger.error(`Failed to process auto-roles for ${user.user_id}: ${error.message}`);
+        }
+      }
+    }
 
-  Logger.info(`Auto-role check completed by ${interaction.user.tag}: ${successCount}/${processedCount}`);
+    const embed = new EmbedBuilder()
+      .setColor(config.bot.successColor)
+      .setTitle('✅ Auto-Role Check Complete')
+      .setDescription(`Processed users: ${processedCount}\nSuccessfully assigned: ${successCount}`)
+      .setTimestamp()
+      .setFooter({ text: config.bot.name });
+
+    if (targetUser) {
+      await interaction.reply({ embeds: [embed] });
+    } else {
+      await interaction.editReply({ embeds: [embed] });
+    }
+
+    Logger.info(`Auto-role check completed by ${interaction.user.tag}: ${successCount}/${processedCount}`);
+  } catch (error) {
+    Logger.error(`Failed to check auto-roles: ${error.message}`);
+    const errorMsg = { content: 'Failed to check auto-roles', ephemeral: true };
+    if (targetUser) {
+      await interaction.reply(errorMsg).catch(() => {});
+    } else {
+      await interaction.editReply(errorMsg).catch(() => {});
+    }
+  }
 }
 
 async function processUserAutoRoles(guild, userId) {
